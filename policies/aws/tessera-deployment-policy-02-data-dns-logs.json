@@ -1,0 +1,130 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "RDSPostgresInstances",
+      "Effect": "Allow",
+      "Action": [
+        "rds:CreateDBInstance",
+        "rds:DescribeDBInstances",
+        "rds:ModifyDBInstance",
+        "rds:DeleteDBInstance",
+        "rds:CreateDBParameterGroup",
+        "rds:DescribeDBParameterGroups",
+        "rds:ModifyDBParameterGroup",
+        "rds:DeleteDBParameterGroup",
+        "rds:DescribeDBParameters",
+        "rds:CreateDBSubnetGroup",
+        "rds:DescribeDBSubnetGroups",
+        "rds:ModifyDBSubnetGroup",
+        "rds:DeleteDBSubnetGroup",
+        "rds:AddTagsToResource",
+        "rds:RemoveTagsFromResource",
+        "rds:ListTagsForResource",
+        "rds:DescribeDBEngineVersions",
+        "rds:DescribeOrderableDBInstanceOptions"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ElastiCacheRedisReplicationGroup",
+      "Effect": "Allow",
+      "Action": [
+        "elasticache:CreateReplicationGroup",
+        "elasticache:DescribeReplicationGroups",
+        "elasticache:ModifyReplicationGroup",
+        "elasticache:DeleteReplicationGroup",
+        "elasticache:CreateCacheSubnetGroup",
+        "elasticache:DescribeCacheSubnetGroups",
+        "elasticache:ModifyCacheSubnetGroup",
+        "elasticache:DeleteCacheSubnetGroup",
+        "elasticache:CreateCacheParameterGroup",
+        "elasticache:DescribeCacheParameterGroups",
+        "elasticache:ModifyCacheParameterGroup",
+        "elasticache:DeleteCacheParameterGroup",
+        "elasticache:DescribeCacheParameters",
+        "elasticache:DescribeCacheClusters",
+        "elasticache:AddTagsToResource",
+        "elasticache:RemoveTagsFromResource",
+        "elasticache:ListTagsForResource"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "SecretsManagerForAllModuleSecrets",
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:CreateSecret",
+        "secretsmanager:DescribeSecret",
+        "secretsmanager:GetSecretValue",
+        "secretsmanager:PutSecretValue",
+        "secretsmanager:UpdateSecret",
+        "secretsmanager:DeleteSecret",
+        "secretsmanager:TagResource",
+        "secretsmanager:UntagResource",
+        "secretsmanager:ListSecrets",
+        "secretsmanager:ListSecretVersionIds"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "S3BucketsForAssetsMilvusLogsAndOptionalStateBackend",
+      "Effect": "Allow",
+      "Action": [
+        "s3:CreateBucket",
+        "s3:DeleteBucket",
+        "s3:ListBucket",
+        "s3:GetBucketLocation",
+        "s3:GetBucketAcl",
+        "s3:PutBucketPublicAccessBlock",
+        "s3:GetBucketPublicAccessBlock",
+        "s3:PutEncryptionConfiguration",
+        "s3:GetEncryptionConfiguration",
+        "s3:PutBucketVersioning",
+        "s3:GetBucketVersioning",
+        "s3:PutBucketLogging",
+        "s3:GetBucketLogging",
+        "s3:PutBucketTagging",
+        "s3:GetBucketTagging",
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "Route53HostedZoneAndVPCAssociations",
+      "Effect": "Allow",
+      "Action": [
+        "route53:CreateHostedZone",
+        "route53:GetHostedZone",
+        "route53:DeleteHostedZone",
+        "route53:ListHostedZones",
+        "route53:ListHostedZonesByName",
+        "route53:AssociateVPCWithHostedZone",
+        "route53:DisassociateVPCFromHostedZone",
+        "route53:CreateVPCAssociationAuthorization",
+        "route53:DeleteVPCAssociationAuthorization",
+        "route53:ListVPCAssociationAuthorizations",
+        "route53:ChangeTagsForResource",
+        "route53:ListTagsForResource",
+        "route53:GetChange"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "CloudWatchLogGroupsForEKSFlowLogsAndRedis",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:DeleteLogGroup",
+        "logs:DescribeLogGroups",
+        "logs:PutRetentionPolicy",
+        "logs:TagResource",
+        "logs:UntagResource",
+        "logs:ListTagsForResource"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

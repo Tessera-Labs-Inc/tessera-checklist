@@ -1,0 +1,239 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DenyIAMUserAndCredentialManagement",
+      "Effect": "Deny",
+      "Action": [
+        "iam:CreateAccessKey",
+        "iam:UpdateAccessKey",
+        "iam:DeleteAccessKey",
+        "iam:CreateUser",
+        "iam:DeleteUser",
+        "iam:CreateLoginProfile",
+        "iam:UpdateLoginProfile",
+        "iam:DeleteLoginProfile",
+        "iam:AttachUserPolicy",
+        "iam:DetachUserPolicy",
+        "iam:PutUserPolicy",
+        "iam:DeleteUserPolicy",
+        "iam:CreateGroup",
+        "iam:DeleteGroup",
+        "iam:AttachGroupPolicy",
+        "iam:DetachGroupPolicy",
+        "iam:PutGroupPolicy",
+        "iam:DeleteGroupPolicy",
+        "iam:AddUserToGroup",
+        "iam:RemoveUserFromGroup"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyBootstrapOnlyNetworkPrimitives",
+      "Effect": "Deny",
+      "Action": [
+        "ec2:CreateVpc",
+        "ec2:DeleteVpc",
+        "ec2:CreateInternetGateway",
+        "ec2:DeleteInternetGateway",
+        "ec2:CreateKeyPair"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyRDSPublicAccess",
+      "Effect": "Deny",
+      "Action": [
+        "rds:CreateDBInstance",
+        "rds:ModifyDBInstance",
+        "rds:CreateDBCluster",
+        "rds:ModifyDBCluster"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "Bool": {
+          "rds:PubliclyAccessible": "true"
+        }
+      }
+    },
+    {
+      "Sid": "DenyDisablingSecurityTelemetry",
+      "Effect": "Deny",
+      "Action": [
+        "cloudtrail:StopLogging",
+        "cloudtrail:DeleteTrail",
+        "cloudtrail:UpdateTrail",
+        "config:StopConfigurationRecorder",
+        "config:DeleteConfigurationRecorder",
+        "config:DeleteDeliveryChannel",
+        "config:PutConfigurationRecorder",
+        "config:PutDeliveryChannel",
+        "guardduty:DeleteDetector",
+        "guardduty:UpdateDetector",
+        "securityhub:DisableSecurityHub",
+        "securityhub:DisassociateFromAdministratorAccount"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyMakingS3Public",
+      "Effect": "Deny",
+      "Action": [
+        "s3:PutAccountPublicAccessBlock",
+        "s3:PutBucketAcl",
+        "s3:PutObjectAcl",
+        "s3:DeleteBucketPolicy"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyOrgAndAccountWideChanges",
+      "Effect": "Deny",
+      "Action": [
+        "organizations:LeaveOrganization",
+        "organizations:DeleteOrganization",
+        "organizations:RemoveAccountFromOrganization",
+        "organizations:CreateAccount",
+        "organizations:InviteAccountToOrganization",
+        "organizations:DeclineHandshake",
+        "account:CloseAccount",
+        "account:PutAlternateContact",
+        "account:DeleteAlternateContact",
+        "account:DisableRegion",
+        "account:EnableRegion"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "IAMRolesPoliciesAndInstanceProfiles",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateRole",
+        "iam:DeleteRole",
+        "iam:GetRole",
+        "iam:UpdateRole",
+        "iam:UpdateAssumeRolePolicy",
+        "iam:CreatePolicy",
+        "iam:DeletePolicy",
+        "iam:GetPolicy",
+        "iam:GetPolicyVersion",
+        "iam:CreatePolicyVersion",
+        "iam:DeletePolicyVersion",
+        "iam:ListPolicyVersions",
+        "iam:AttachRolePolicy",
+        "iam:DetachRolePolicy",
+        "iam:ListAttachedRolePolicies",
+        "iam:PutRolePolicy",
+        "iam:GetRolePolicy",
+        "iam:DeleteRolePolicy",
+        "iam:ListRolePolicies",
+        "iam:CreateInstanceProfile",
+        "iam:DeleteInstanceProfile",
+        "iam:GetInstanceProfile",
+        "iam:AddRoleToInstanceProfile",
+        "iam:RemoveRoleFromInstanceProfile",
+        "iam:ListInstanceProfilesForRole",
+        "iam:TagRole",
+        "iam:UntagRole",
+        "iam:TagPolicy",
+        "iam:UntagPolicy",
+        "iam:TagInstanceProfile",
+        "iam:UntagInstanceProfile",
+        "iam:ListRoleTags",
+        "iam:ListPolicyTags",
+        "iam:ListInstanceProfileTags",
+        "iam:CreateOpenIDConnectProvider",
+        "iam:GetOpenIDConnectProvider",
+        "iam:DeleteOpenIDConnectProvider",
+        "iam:TagOpenIDConnectProvider",
+        "iam:ListOpenIDConnectProviders",
+        "iam:UpdateOpenIDConnectProviderThumbprint"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "AllowPassRoleToServicesTesseraUses",
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": [
+            "ec2.amazonaws.com",
+            "eks.amazonaws.com",
+            "eks-fargate.amazonaws.com",
+            "eks-nodegroup.amazonaws.com",
+            "pods.eks.amazonaws.com",
+            "rds.amazonaws.com",
+            "monitoring.rds.amazonaws.com",
+            "vpc-flow-logs.amazonaws.com"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "AllowServiceLinkedRoleCreationForTesseraServices",
+      "Effect": "Allow",
+      "Action": "iam:CreateServiceLinkedRole",
+      "Resource": "arn:aws:iam::*:role/aws-service-role/*",
+      "Condition": {
+        "StringEquals": {
+          "iam:AWSServiceName": [
+            "eks.amazonaws.com",
+            "eks-nodegroup.amazonaws.com",
+            "rds.amazonaws.com",
+            "elasticache.amazonaws.com",
+            "autoscaling.amazonaws.com",
+            "spot.amazonaws.com",
+            "spotfleet.amazonaws.com"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "KMSKeysForEKSSecretsEncryptionAndEBSCSI",
+      "Effect": "Allow",
+      "Action": [
+        "kms:CreateKey",
+        "kms:DescribeKey",
+        "kms:EnableKeyRotation",
+        "kms:PutKeyPolicy",
+        "kms:GetKeyPolicy",
+        "kms:CreateAlias",
+        "kms:DeleteAlias",
+        "kms:ListAliases",
+        "kms:ScheduleKeyDeletion",
+        "kms:TagResource",
+        "kms:UntagResource",
+        "kms:ListResourceTags",
+        "kms:CreateGrant",
+        "kms:ListGrants",
+        "kms:RevokeGrant",
+        "kms:Decrypt",
+        "kms:GenerateDataKey",
+        "kms:GenerateDataKeyWithoutPlaintext"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "STSForProviderAuthAndCallerIdentity",
+      "Effect": "Allow",
+      "Action": [
+        "sts:GetCallerIdentity",
+        "sts:AssumeRole"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "BedrockInferenceAndDiscoveryOnly",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:InvokeModel",
+        "bedrock:InvokeModelWithResponseStream",
+        "bedrock:GetFoundationModel",
+        "bedrock:ListFoundationModels"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

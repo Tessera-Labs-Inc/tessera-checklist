@@ -1,125 +1,124 @@
 # Tessera AWS Deployment Policy
 
-`tessera-deployment-policy.json` is the single IAM policy a customer attaches to
-the role used by Terraform (the GitHub Actions self-hosted runner instance
-profile, per the onboarding checklist's "IAM principal ... for initial deploy")
-to stand up a full Tessera environment on AWS. It replaces the current practice
-of granting `AdministratorAccess` for that role with a scoped, reviewable
-alternative that still covers every resource Tessera's Terraform modules
-create.
+Three IAM policy documents a customer attaches (all three, to the same role)
+to the role used by Terraform (the GitHub Actions self-hosted runner instance
+profile, per the onboarding checklist's "IAM principal ... for initial
+deploy") to stand up a full Tessera environment on AWS. Together they replace
+granting `AdministratorAccess` for that role.
 
-## How this was derived
+- `tessera-deployment-policy-01-networking-compute.json` — EC2/VPC
+  networking, Auto Scaling (EKS managed node groups), EKS, ECR
+- `tessera-deployment-policy-02-data-dns-logs.json` — RDS, ElastiCache, Secrets
+  Manager, S3, Route53, CloudWatch Logs
+- `tessera-deployment-policy-03-identity-security.json` — IAM, KMS, STS,
+  Bedrock, and all guardrail `Deny` statements
 
-Built by walking every AWS-related Tessera repo and enumerating the actual
-`resource "aws_*"` blocks each one declares (including the modules pulled in
-only via remote `source = "github.com/Tessera-Labs-Inc/..."` references, which
-were cloned locally to inspect since they aren't vendored in-repo):
+## Why three files, and no wildcards
 
-- `terraform-aws-modules-networking` — VPC, subnets, route tables, IGW, NAT
-  Gateway + EIP, Transit Gateway attachment, VPC Flow Logs
-- `terraform-aws-modules-security-groups` — security groups + rules
-- `terraform-aws-modules-vpc-endpoints` — interface/gateway VPC endpoints
-- `terraform-aws-modules-eks` (wraps registry module `terraform-aws-modules/eks/aws`) —
-  EKS cluster, managed node groups, addons, access entries, cluster KMS key,
-  CloudWatch log group, node/cluster IAM roles, EBS CSI + external-dns pod
-  identity roles, Secrets Manager entries, cluster-autoscaler policy
-- `terraform-aws-modules-eks-pod-identity` — per-service-account IAM roles +
-  `aws_eks_pod_identity_association`
-- `terraform-aws-modules-compute` — operator/bastion EC2 instance, imported
-  EC2 key pair, instance profile
-- `terraform-aws-modules-database` — RDS (Postgres) instances, parameter/subnet
-  groups, ElastiCache (Redis) replication group, RDS monitoring IAM role,
-  Secrets Manager entries
-- `terraform-aws-modules-s3` — assets/milvus/logs buckets (versioning, SSE,
-  access logging, public-access-block already enforced in the module itself)
-- `terraform-aws-modules-route53` — hosted zone + additional VPC associations
-- `terraform-aws-modules-bedrock`, `-mcp`, `-cert` — Secrets Manager entries
-  for LLM/MCP/TLS config
-- `terraform-aws-modules-flux` — GitHub-side only (deploy keys, repo files);
-  no AWS resources, not reflected in this policy
-- `terraform-aws-modules-cloudflare-networking` — security group + VPC
-  endpoint associations (Cloudflare API side is out of scope for AWS IAM)
-- `terraform-aws-deployment-tessera` / `terraform-aws-modules-orchestration-tessera` —
-  wire the above together; no additional resource types
-- `terraform-aws-modules-ecr`, `terraform-aws-modules-bootstrap-ecr` (and the
-  `modules/ecr`, `modules/bootstrap-ecr` copies inside the legacy `terraform-aws`
-  monorepo) — `aws_ecr_repository` + `aws_ecr_lifecycle_policy`, the actual
-  "Bootstrap: Image Registry (ECR)" checklist step
-- `terraform-aws-bootstrap` — thin wrapper, only calls the networking module
-- legacy `terraform-aws` monorepo, `environments/bootstrap-customer-dev` — the
-  VDI bootstrap flow: bastion + Windows desktop EC2 instances (public subnet,
-  SSH/RDP security groups), a shared EC2 instance role/profile with
-  `AmazonSSMManagedInstanceCore` attached, imported key pair
-- `terraform-aws-modules-orchestration-micron`, `-mdt`, and the local
-  `-orchestration-merck` — customer-specific orchestrations; same module set
-  as `-orchestration-tessera` (bedrock, cert, compute, database, eks(-pod-identity),
-  networking, route53, s3, security-groups, vpc-endpoints) at different pinned
-  versions, plus `aws_network_interface_sg_attachment` for desktop/bastion ENIs.
-  No new services beyond what's already covered.
-- `terraform-aws-modules-orchestration-vault`, `terraform-aws-modules-tessera` —
-  unimplemented scaffolds (`resource "null_resource" "this" {}` only); nothing
-  to account for yet
-- `terraform-aws-internal` (Tessera's own AWS account — internal Vault +
-  cross-region S3 replication) — explicitly out of scope, this manages
-  Tessera-Labs-Inc's own infrastructure, not a customer's account
-- `terraform-aws-legacy`, `terraform-aws-merck-mock`, `terraform-aws-merck-copy` —
-  archived/mock/test repos, skipped as dead code
+Every `Action` is a fully-qualified, explicit action name — no `service:*`
+and no `service:Verb*` suffix wildcards anywhere, since a blanket wildcard is
+exactly what a customer security review will reject. That comes at a real
+size cost: AWS caps a single customer-managed policy at **6,144 characters**
+(non-whitespace) of policy document, and enumerating every action a dozen
+Terraform modules actually call for 14 services doesn't fit in one. Splitting
+along infra / data / identity lines keeps each file well under the limit
+(current sizes: 4,446 / 3,023 / 4,662 chars) while keeping related actions
+together for review. Attach all three to the role — IAM lets you attach up to
+20 managed policies per role, so this is a normal pattern for a broad
+deploy role.
 
-Confirmed via `gh`/GitHub search against the full `Tessera-Labs-Inc` org (32
-`terraform-aws*` repos total) that this is the complete set of live repos —
-not just the ones reachable from `terraform-aws-modules-orchestration-tessera`'s
-module graph.
+## How the action lists were derived
 
-Given the number of distinct resource types (40+) spread across services,
-this follows the same shape as the reference policy supplied: **broad
-per-service `Allow` (`ec2:*`, `eks:*`, `rds:*`, ...) plus targeted `Deny`
-guardrails**, rather than an unreadable per-action least-privilege list. A
-true least-privilege policy would need to track every provider version bump
-across a dozen module repos; the guardrails below are the actual security
-boundary.
+Same repo-by-repo resource audit as before (see git history of this file for
+the full per-repo breakdown), but this time each `resource "aws_*"` block was
+mapped to the **exact AWS API actions** Terraform calls to create/read/
+update/delete it — not just the service it belongs to. For example:
+`aws_db_instance` → `rds:CreateDBInstance`, `rds:ModifyDBInstance`,
+`rds:DeleteDBInstance`, `rds:DescribeDBInstances`, plus the parameter/subnet
+group and tagging calls it also needs; `aws_eks_pod_identity_association` →
+the `eks:*PodIdentityAssociation` family, not blanket `eks:*`.
 
-## Deviations from the reference policy sample
+Two things worth calling out explicitly:
 
-- **Removed `ec2:AllocateAddress` / `ec2:AssociateAddress` from the deny
-  list.** `terraform-aws-modules-networking` allocates an EIP per AZ for its
-  NAT Gateways whenever `enable_private_outbound = true` and no Transit
-  Gateway is in play (the IGW model). Denying these actions breaks that path
-  outright — confirmed by reading the module's `aws_eip.nat_az1`/`az2` and
-  `aws_nat_gateway.az1`/`az2` resources. Kept `ec2:CreateVpc` /
-  `ec2:CreateInternetGateway` denied instead, since those follow the intended
-  flow (customer supplies an existing VPC ID and either a TGW or IGW ID per
-  the checklist).
-- **`ec2:CreateKeyPair` stays denied.** The compute module only ever imports
-  the customer-supplied SSH public key (`aws_key_pair` with `public_key` set,
-  i.e. `ec2:ImportKeyPair`), never generates one, so this denial is free.
-- Added `s3:PutBucketPublicAccessBlock` to the "don't make S3 public" deny
-  (the sample only covered `PutAccountPublicAccessBlock`, missing the
-  per-bucket equivalent).
-- Bedrock allow list adds `bedrock:GetFoundationModel` /
-  `bedrock:ListFoundationModels` (read-only discovery) alongside the two
-  `InvokeModel*` actions, so Terraform/operators can validate model
-  availability without any Bedrock admin/write access.
+- **`elasticloadbalancing` and `cloudwatch` (metrics/alarms) were dropped
+  entirely**, even though the earlier wildcard-based version included them.
+  No repo declares an `aws_lb`, `aws_elb`, `aws_lb_target_group`, or
+  `aws_cloudwatch_metric_alarm` resource anywhere — Classic ELBs get
+  provisioned by Kubernetes at runtime (via the node IAM role or a
+  load-balancer-controller pod-identity role), not by Terraform. Keeping
+  those permissions on the *deploy* role would be padding, not requirement.
+  `cloudwatch` here specifically means the Alarms/Dashboards/Metrics
+  namespace — CloudWatch **Logs** (a different action prefix, `logs:`) is
+  still included since EKS control-plane logging, VPC flow logs, and the
+  Redis slow-log all create `aws_cloudwatch_log_group` resources.
+- **`iam:PassRole` and `iam:CreateServiceLinkedRole` are scoped with
+  `Condition` blocks**, not left as bare `Resource: "*"` grants — PassRole is
+  restricted to `iam:PassedToService` being one of the AWS service principals
+  Tessera's modules actually pass roles to (EC2, EKS, EKS node groups, EKS
+  pod identity, RDS + its monitoring role, VPC Flow Logs), and
+  CreateServiceLinkedRole is restricted to the five AWS service names
+  (`eks`, `eks-nodegroup`, `rds`, `elasticache`, `autoscaling`, `spot`,
+  `spotfleet`) whose first-time-in-account use triggers an automatic
+  service-linked-role creation. This is the standard mitigation for handing
+  out broad `iam:PassRole`/`iam:CreateServiceLinkedRole`, since without a
+  condition either one is a privilege-escalation vector.
+- **Fixed a bug from an earlier draft of this policy**: `s3:PutBucketAcl` and
+  friends were correctly denied as a "don't make S3 public" guardrail, but at
+  one point `s3:PutBucketPublicAccessBlock` (the action our own S3 module
+  uses to *enable* the public-access block — i.e. the safe direction) had
+  also ended up in that same `Deny` list. Since `Deny` always wins over
+  `Allow` in IAM's evaluation, that would have broken every bucket creation
+  outright. There's no IAM condition key that distinguishes "set the block to
+  true" from "set it to false" for that specific API, so the fix is to allow
+  `PutBucketPublicAccessBlock` unconditionally and rely on the ACL/policy
+  denies (which are the actual mechanisms that make something public) as the
+  real guardrail.
+- Kept the same deviations from the original reference sample as before:
+  `ec2:AllocateAddress`/`AssociateAddress` are allowed (NAT Gateway EIPs are
+  a real, expected part of the IGW deployment model), `ec2:CreateVpc` /
+  `ec2:CreateInternetGateway` / `ec2:CreateKeyPair` stay denied (existing
+  VPC/IGW is a required customer input per the checklist; SSH keys are always
+  imported, never generated).
 
-## Known caveat / edge case not covered
+## Known caveats
 
-If a customer account has **no existing VPC or IGW** and expects Tessera's
-Terraform to create them from scratch (`existing_vpc_id` / IGW left unset),
-the `DenyBootstrapOnlyNetworkPrimitives` statement will block that. Per the
-checklist this isn't the expected path (an existing VPC ID + CIDR reservation
-is a required customer input), but if that ever changes, drop
-`ec2:CreateVpc` / `ec2:CreateInternetGateway` from the deny statement for that
-account's policy.
+- **Static analysis, not a live capture.** This was derived by reading
+  Terraform source across ~30 repos, not by running `terraform apply` against
+  a real account with CloudTrail-based IAM Access Analyzer policy generation.
+  It should be very close, but if a fresh customer deploy hits an
+  `AccessDenied`, that's the fastest way to close any remaining gap: run the
+  failing step once, generate a policy from the CloudTrail events, and diff
+  it against these three files.
+- **S3 state-backend access is included but may be unnecessary.** The
+  sandbox environment's Terraform state currently lives in
+  `tessera-internal-tfstate`, a bucket in Tessera's own AWS account — so a
+  customer-account role wouldn't need `s3:GetObject`/`PutObject`/`DeleteObject`
+  for that. They're included in `02-data-dns-logs.json` anyway since the
+  checklist lists the state bucket as "Customer or Tessera," i.e. sometimes
+  customer-hosted.
+- **The VPC/IGW edge case from before still applies**: if a customer account
+  has no existing VPC or IGW and expects Terraform to create them from
+  scratch, `DenyBootstrapOnlyNetworkPrimitives` (in file 03) blocks it by
+  design. Drop `ec2:CreateVpc`/`ec2:CreateInternetGateway` from that deny for
+  that specific account if this ever changes.
+- **GitHub Actions OIDC provider for cross-account ECR push** (checklist:
+  "GitHub Actions OIDC trust + IAM role to push to ECR") isn't backed by a
+  Terraform resource in any repo audited — it may be set up manually today.
+  The IAM statement in file 03 still includes the
+  `iam:*OpenIDConnectProvider*` actions needed if/when that gets
+  Terraform-managed.
 
 ## Usage
 
 1. Create an IAM role in the customer's AWS account (trust policy: the
    GitHub Actions self-hosted runner's instance profile, or OIDC federation
    if the runner assumes a role via `sts:AssumeRoleWithWebIdentity`).
-2. Attach `tessera-deployment-policy.json` as a customer-managed policy on
-   that role.
+2. Attach all three `tessera-deployment-policy-0*.json` files as
+   customer-managed policies on that role.
 3. Use the resulting role ARN wherever the checklist calls for the
-   "IAM principal with AdministratorAccess for initial deploy" — this policy
-   is the replacement for that AdministratorAccess grant.
+   "IAM principal with AdministratorAccess for initial deploy" — these
+   policies are the replacement for that AdministratorAccess grant.
 
-Azure and GCP equivalents will follow the same per-repo derivation and live
-alongside this one under `policies/azure/` and `policies/gcp/` respectively.
+Azure and GCP equivalents will follow the same per-repo, per-action
+derivation and live alongside this one under `policies/azure/` and
+`policies/gcp/` respectively.
