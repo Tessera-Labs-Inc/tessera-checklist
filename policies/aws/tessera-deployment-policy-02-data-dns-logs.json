@@ -2,13 +2,15 @@
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "RDSPostgresInstances",
+      "Sid": "RDSInstanceParameterAndSubnetGroupManagement",
       "Effect": "Allow",
       "Action": [
         "rds:CreateDBInstance",
         "rds:DescribeDBInstances",
         "rds:ModifyDBInstance",
         "rds:DeleteDBInstance",
+        "rds:RestoreDBInstanceFromDBSnapshot",
+        "rds:DescribeDBSnapshots",
         "rds:CreateDBParameterGroup",
         "rds:DescribeDBParameterGroups",
         "rds:ModifyDBParameterGroup",
@@ -20,14 +22,21 @@
         "rds:DeleteDBSubnetGroup",
         "rds:AddTagsToResource",
         "rds:RemoveTagsFromResource",
-        "rds:ListTagsForResource",
+        "rds:ListTagsForResource"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "RDSEngineDiscovery",
+      "Effect": "Allow",
+      "Action": [
         "rds:DescribeDBEngineVersions",
         "rds:DescribeOrderableDBInstanceOptions"
       ],
       "Resource": "*"
     },
     {
-      "Sid": "ElastiCacheRedisReplicationGroup",
+      "Sid": "ElastiCacheReplicationGroupManagement",
       "Effect": "Allow",
       "Action": [
         "elasticache:CreateReplicationGroup",
@@ -51,7 +60,7 @@
       "Resource": "*"
     },
     {
-      "Sid": "SecretsManagerForAllModuleSecrets",
+      "Sid": "SecretsManagerSecretManagement",
       "Effect": "Allow",
       "Action": [
         "secretsmanager:CreateSecret",
@@ -60,15 +69,23 @@
         "secretsmanager:PutSecretValue",
         "secretsmanager:UpdateSecret",
         "secretsmanager:DeleteSecret",
+        "secretsmanager:RestoreSecret",
         "secretsmanager:TagResource",
         "secretsmanager:UntagResource",
-        "secretsmanager:ListSecrets",
-        "secretsmanager:ListSecretVersionIds"
+        "secretsmanager:ListSecretVersionIds",
+        "secretsmanager:GetResourcePolicy",
+        "secretsmanager:UpdateSecretVersionStage"
       ],
       "Resource": "*"
     },
     {
-      "Sid": "S3BucketsForAssetsMilvusLogsAndOptionalStateBackend",
+      "Sid": "SecretsManagerAccountWideList",
+      "Effect": "Allow",
+      "Action": "secretsmanager:ListSecrets",
+      "Resource": "*"
+    },
+    {
+      "Sid": "S3BucketConfiguration",
       "Effect": "Allow",
       "Action": [
         "s3:CreateBucket",
@@ -86,6 +103,24 @@
         "s3:GetBucketLogging",
         "s3:PutBucketTagging",
         "s3:GetBucketTagging",
+        "s3:TagResource",
+        "s3:UntagResource",
+        "s3:ListTagsForResource",
+        "s3:GetAccelerateConfiguration",
+        "s3:GetBucketCors",
+        "s3:GetLifecycleConfiguration",
+        "s3:GetBucketObjectLockConfiguration",
+        "s3:GetBucketPolicy",
+        "s3:GetReplicationConfiguration",
+        "s3:GetBucketRequestPayment",
+        "s3:GetBucketWebsite"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "S3ObjectAccessForOptionalCustomerHostedStateBackend",
+      "Effect": "Allow",
+      "Action": [
         "s3:GetObject",
         "s3:PutObject",
         "s3:DeleteObject"
@@ -93,11 +128,12 @@
       "Resource": "*"
     },
     {
-      "Sid": "Route53HostedZoneAndVPCAssociations",
+      "Sid": "Route53HostedZoneManagement",
       "Effect": "Allow",
       "Action": [
         "route53:CreateHostedZone",
         "route53:GetHostedZone",
+        "route53:UpdateHostedZoneComment",
         "route53:DeleteHostedZone",
         "route53:ListHostedZones",
         "route53:ListHostedZonesByName",
@@ -108,22 +144,28 @@
         "route53:ListVPCAssociationAuthorizations",
         "route53:ChangeTagsForResource",
         "route53:ListTagsForResource",
+        "route53:ListResourceRecordSets",
         "route53:GetChange"
       ],
       "Resource": "*"
     },
     {
-      "Sid": "CloudWatchLogGroupsForEKSFlowLogsAndRedis",
+      "Sid": "CloudWatchLogGroupManagement",
       "Effect": "Allow",
       "Action": [
         "logs:CreateLogGroup",
         "logs:DeleteLogGroup",
-        "logs:DescribeLogGroups",
         "logs:PutRetentionPolicy",
         "logs:TagResource",
         "logs:UntagResource",
         "logs:ListTagsForResource"
       ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "CloudWatchLogsAccountWideDiscovery",
+      "Effect": "Allow",
+      "Action": "logs:DescribeLogGroups",
       "Resource": "*"
     }
   ]
