@@ -105,7 +105,7 @@
       "Resource": "*"
     },
     {
-      "Sid": "IAMRolesPoliciesAndInstanceProfiles",
+      "Sid": "IAMRoleManagement",
       "Effect": "Allow",
       "Action": [
         "iam:CreateRole",
@@ -113,6 +113,21 @@
         "iam:GetRole",
         "iam:UpdateRole",
         "iam:UpdateAssumeRolePolicy",
+        "iam:PutRolePolicy",
+        "iam:GetRolePolicy",
+        "iam:DeleteRolePolicy",
+        "iam:ListRolePolicies",
+        "iam:TagRole",
+        "iam:UntagRole",
+        "iam:ListRoleTags",
+        "iam:ListInstanceProfilesForRole"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "IAMPolicyManagement",
+      "Effect": "Allow",
+      "Action": [
         "iam:CreatePolicy",
         "iam:DeletePolicy",
         "iam:GetPolicy",
@@ -120,35 +135,53 @@
         "iam:CreatePolicyVersion",
         "iam:DeletePolicyVersion",
         "iam:ListPolicyVersions",
-        "iam:AttachRolePolicy",
-        "iam:DetachRolePolicy",
-        "iam:ListAttachedRolePolicies",
-        "iam:PutRolePolicy",
-        "iam:GetRolePolicy",
-        "iam:DeleteRolePolicy",
-        "iam:ListRolePolicies",
+        "iam:TagPolicy",
+        "iam:UntagPolicy",
+        "iam:ListPolicyTags"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "IAMInstanceProfileManagement",
+      "Effect": "Allow",
+      "Action": [
         "iam:CreateInstanceProfile",
         "iam:DeleteInstanceProfile",
         "iam:GetInstanceProfile",
-        "iam:AddRoleToInstanceProfile",
-        "iam:RemoveRoleFromInstanceProfile",
-        "iam:ListInstanceProfilesForRole",
-        "iam:TagRole",
-        "iam:UntagRole",
-        "iam:TagPolicy",
-        "iam:UntagPolicy",
         "iam:TagInstanceProfile",
         "iam:UntagInstanceProfile",
-        "iam:ListRoleTags",
-        "iam:ListPolicyTags",
-        "iam:ListInstanceProfileTags",
+        "iam:ListInstanceProfileTags"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "IAMRolePolicyAttachmentAndInstanceProfileAssociation",
+      "Effect": "Allow",
+      "Action": [
+        "iam:AttachRolePolicy",
+        "iam:DetachRolePolicy",
+        "iam:ListAttachedRolePolicies",
+        "iam:AddRoleToInstanceProfile",
+        "iam:RemoveRoleFromInstanceProfile"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "IAMOIDCProviderForGitHubActions",
+      "Effect": "Allow",
+      "Action": [
         "iam:CreateOpenIDConnectProvider",
         "iam:GetOpenIDConnectProvider",
         "iam:DeleteOpenIDConnectProvider",
         "iam:TagOpenIDConnectProvider",
-        "iam:ListOpenIDConnectProviders",
         "iam:UpdateOpenIDConnectProviderThumbprint"
       ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "IAMAccountWideList",
+      "Effect": "Allow",
+      "Action": "iam:ListOpenIDConnectProviders",
       "Resource": "*"
     },
     {
@@ -175,7 +208,7 @@
       "Sid": "AllowServiceLinkedRoleCreationForTesseraServices",
       "Effect": "Allow",
       "Action": "iam:CreateServiceLinkedRole",
-      "Resource": "arn:aws:iam::*:role/aws-service-role/*",
+      "Resource": "*",
       "Condition": {
         "StringEquals": {
           "iam:AWSServiceName": [
@@ -191,17 +224,16 @@
       }
     },
     {
-      "Sid": "KMSKeysForEKSSecretsEncryptionAndEBSCSI",
+      "Sid": "KMSOnExistingTerraformManagedKeysOnly",
       "Effect": "Allow",
       "Action": [
-        "kms:CreateKey",
         "kms:DescribeKey",
+        "kms:GetKeyRotationStatus",
         "kms:EnableKeyRotation",
         "kms:PutKeyPolicy",
         "kms:GetKeyPolicy",
         "kms:CreateAlias",
         "kms:DeleteAlias",
-        "kms:ListAliases",
         "kms:ScheduleKeyDeletion",
         "kms:TagResource",
         "kms:UntagResource",
@@ -213,26 +245,42 @@
         "kms:GenerateDataKey",
         "kms:GenerateDataKeyWithoutPlaintext"
       ],
-      "Resource": "*"
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceTag/ManagedBy": "terraform"
+        }
+      }
     },
     {
-      "Sid": "STSForProviderAuthAndCallerIdentity",
+      "Sid": "KMSCreateKeyAndListAliases",
       "Effect": "Allow",
       "Action": [
-        "sts:GetCallerIdentity",
-        "sts:AssumeRole"
+        "kms:CreateKey",
+        "kms:ListAliases"
       ],
       "Resource": "*"
     },
     {
-      "Sid": "BedrockInferenceAndDiscoveryOnly",
+      "Sid": "STSCallerIdentityNoResourceTypeExists",
+      "Effect": "Allow",
+      "Action": "sts:GetCallerIdentity",
+      "Resource": "*"
+    },
+    {
+      "Sid": "BedrockInferenceAndDiscovery",
       "Effect": "Allow",
       "Action": [
         "bedrock:InvokeModel",
         "bedrock:InvokeModelWithResponseStream",
-        "bedrock:GetFoundationModel",
-        "bedrock:ListFoundationModels"
+        "bedrock:GetFoundationModel"
       ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "BedrockAccountWideList",
+      "Effect": "Allow",
+      "Action": "bedrock:ListFoundationModels",
       "Resource": "*"
     }
   ]
