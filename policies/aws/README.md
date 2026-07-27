@@ -239,8 +239,13 @@ role, and the RDS enhanced-monitoring role.
   Kubernetes Secrets envelope-encryption key today, and any other
   Terraform-managed key going forward. The tag condition means this role
   can act on Terraform's own keys and nothing else.
-- `kms:CreateKey` is its own statement because a key that doesn't exist
-  yet has no ARN and no tag to condition on.
+- `kms:CreateKey` and `kms:TagResource` are their own unconditioned
+  statement because a key that doesn't exist yet has no ARN and no tag to
+  condition on — and the very first `TagResource` call on a newly created
+  key (the one that applies `ManagedBy=terraform` in the first place) can't
+  satisfy a condition on a tag it hasn't set yet either. `kms:UntagResource`
+  stays in the tag-conditioned statement since by the time a tag is being
+  removed, the key already carries `ManagedBy=terraform`.
 
 ### Caller identity (STS)
 
