@@ -228,8 +228,6 @@
         "kms:EnableKeyRotation",
         "kms:PutKeyPolicy",
         "kms:GetKeyPolicy",
-        "kms:CreateAlias",
-        "kms:DeleteAlias",
         "kms:ScheduleKeyDeletion",
         "kms:UntagResource",
         "kms:ListResourceTags",
@@ -248,12 +246,14 @@
       }
     },
     {
-      "Sid": "KMSCreateKeyAndListAliases",
+      "Sid": "KMSKeyAndAliasCreationUnconditioned",
       "Effect": "Allow",
       "Action": [
         "kms:CreateKey",
         "kms:ListAliases",
-        "kms:TagResource"
+        "kms:TagResource",
+        "kms:CreateAlias",
+        "kms:DeleteAlias"
       ],
       "Resource": "*"
     },

@@ -246,6 +246,13 @@ role, and the RDS enhanced-monitoring role.
   satisfy a condition on a tag it hasn't set yet either. `kms:UntagResource`
   stays in the tag-conditioned statement since by the time a tag is being
   removed, the key already carries `ManagedBy=terraform`.
+- `kms:CreateAlias` / `kms:DeleteAlias` are in that same unconditioned
+  statement for a stronger reason than timing: the alias is a separate KMS
+  resource from the key, and **KMS aliases don't support resource tags at
+  all** — there's no tag on an alias for `aws:ResourceTag/ManagedBy` to ever
+  match, on any key, ever. Conditioning these on a resource tag isn't a
+  bootstrap-only gap like `CreateKey`/`TagResource`, it's permanently
+  unsatisfiable.
 
 ### Caller identity (STS)
 
