@@ -90,7 +90,12 @@
         "ec2:DeleteTags",
         "ec2:DescribeTags",
         "ec2:DescribeAvailabilityZones",
-        "ec2:DescribeRegions"
+        "ec2:DescribeRegions",
+        "ec2:DescribeAddressesAttribute",
+        "ec2:DescribeInstanceCreditSpecifications",
+        "ec2:DescribeNetworkAcls",
+        "ec2:DescribePrefixLists",
+        "ec2:GetInstanceUefiData"
       ],
       "Resource": "*"
     },
@@ -117,7 +122,7 @@
       "Resource": "*"
     },
     {
-      "Sid": "EKSClusterNodegroupsAddonsAccessAndPodIdentity",
+      "Sid": "EKSClusterNodegroupAddonAccessEntryPodIdentity",
       "Effect": "Allow",
       "Action": [
         "eks:CreateCluster",
@@ -125,7 +130,6 @@
         "eks:UpdateClusterConfig",
         "eks:UpdateClusterVersion",
         "eks:DeleteCluster",
-        "eks:ListClusters",
         "eks:CreateNodegroup",
         "eks:DescribeNodegroup",
         "eks:UpdateNodegroupConfig",
@@ -146,7 +150,6 @@
         "eks:AssociateAccessPolicy",
         "eks:DisassociateAccessPolicy",
         "eks:ListAssociatedAccessPolicies",
-        "eks:ListAccessPolicies",
         "eks:CreatePodIdentityAssociation",
         "eks:DescribePodIdentityAssociation",
         "eks:UpdatePodIdentityAssociation",
@@ -161,7 +164,16 @@
       "Resource": "*"
     },
     {
-      "Sid": "ECRRepositoriesForFlux",
+      "Sid": "EKSAccountWideListOperations",
+      "Effect": "Allow",
+      "Action": [
+        "eks:ListClusters",
+        "eks:ListAccessPolicies"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ECRRepositoryAndImageManagement",
       "Effect": "Allow",
       "Action": [
         "ecr:CreateRepository",
@@ -175,8 +187,29 @@
         "ecr:PutImageTagMutability",
         "ecr:TagResource",
         "ecr:UntagResource",
-        "ecr:ListTagsForResource"
+        "ecr:ListTagsForResource",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:InitiateLayerUpload",
+        "ecr:UploadLayerPart",
+        "ecr:CompleteLayerUpload",
+        "ecr:PutImage",
+        "ecr:BatchGetImage",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:ListImages",
+        "ecr:BatchDeleteImage"
       ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ECRAuthToken",
+      "Effect": "Allow",
+      "Action": "ecr:GetAuthorizationToken",
+      "Resource": "*"
+    },
+    {
+      "Sid": "SSMEKSOptimizedAMILookup",
+      "Effect": "Allow",
+      "Action": "ssm:GetParameter",
       "Resource": "*"
     }
   ]
