@@ -61,10 +61,10 @@ cluster. VPC Flow Logs ship network traffic metadata to CloudWatch Logs.
   network already has a hub-and-spoke Transit Gateway topology; unused
   when the VPC connects out through a plain internet gateway/NAT instead.
 - `ec2:CreateVpc` / `DeleteVpc` / `CreateInternetGateway` /
-  `DeleteInternetGateway` are granted here but blocked by a guardrail deny
-  further down, since standard onboarding assumes the customer already has
-  a VPC and internet gateway. An account that wants Terraform to build the
-  network from scratch needs that guardrail relaxed first.
+  `DeleteInternetGateway` are granted so Terraform can build the network
+  from scratch in a greenfield account. BYO-VPC onboardings simply never
+  exercise them — Terraform consumes the customer's existing VPC/subnet
+  ids and has no reason to call create.
 
 ### Compute and Auto Scaling
 
@@ -278,17 +278,16 @@ whatever the allow statements above grant:
 - **No IAM users or long-lived credentials.** This role only ever manages
   roles for workloads — it can't create an IAM user, an access key, a
   login profile, or a group, and can't attach policies to one.
-- **No building network primitives from scratch, no ad-hoc SSH keys.**
-  `ec2:CreateVpc` / `DeleteVpc` / `CreateInternetGateway` /
-  `DeleteInternetGateway` / `CreateKeyPair` are blocked by default, since
-  onboarding assumes an existing customer VPC and an imported SSH key. An
-  account that wants Terraform to build the VPC/IGW needs this relaxed
-  first.
+- **No ad-hoc SSH keys.** `ec2:CreateKeyPair` is denied — SSH access uses
+  a customer-provided public key via `ec2:ImportKeyPair`, so nothing this
+  role does can mint a brand-new private key. (VPC/IGW creation is
+  deliberately NOT denied: greenfield deployments have Terraform build the
+  network; BYO-VPC deployments just never call those actions.)
 - **No public RDS.** `rds:CreateDBInstance` / `ModifyDBInstance` /
-  `CreateDBCluster` / `ModifyDBCluster` are denied outright — the intent is
-  to force RDS changes through a separate, narrower path if a
-  publicly-accessible database is ever genuinely needed, rather than let a
-  stray Terraform change flip that flag.
+  `CreateDBCluster` / `ModifyDBCluster` are denied **when
+  `rds:PubliclyAccessible` is `true`** — normal (private) database
+  create/modify works unrestricted, but a stray Terraform change can never
+  flip a database to publicly accessible under this role.
 - **No disabling security telemetry.** CloudTrail, Config, GuardDuty, and
   Security Hub can't be stopped, deleted, or reconfigured by this role.
 - **No making S3 public.** Account-level and bucket-level public-access
@@ -314,9 +313,10 @@ whatever the allow statements above grant:
   module today — it's set up by hand during onboarding. The
   `iam:*OpenIDConnectProvider*` actions are here for if/when that becomes
   Terraform-managed.
-- **If a customer account has no existing VPC or IGW** and wants Terraform
-  to create them, drop `ec2:CreateVpc` / `ec2:CreateInternetGateway` from
-  `DenyBootstrapOnlyNetworkPrimitives` for that account specifically.
+- **Greenfield vs BYO-VPC:** both work under this policy as-is. VPC/IGW
+  create/delete is allowed (greenfield deployments exercise it, BYO-VPC
+  ones never call it); the only network-adjacent guardrail is the
+  `ec2:CreateKeyPair` deny in `DenyBootstrapOnlyNetworkPrimitives`.
 
 ## Usage
 
