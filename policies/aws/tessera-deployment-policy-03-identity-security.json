@@ -274,6 +274,15 @@
       "Resource": "*"
     },
     {
+      "Sid": "BedrockMarketplaceSubscriptions",
+      "Effect": "Allow",
+      "Action": [
+        "aws-marketplace:ViewSubscriptions",
+        "aws-marketplace:Subscribe"
+      ],
+      "Resource": "*"
+    },
+    {
       "Sid": "BedrockAccountWideList",
       "Effect": "Allow",
       "Action": "bedrock:ListFoundationModels",

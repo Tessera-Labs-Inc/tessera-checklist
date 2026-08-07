@@ -270,6 +270,15 @@ exercise this part of the policy — the permissions stay in place because
 they're part of the standard module composition, not something toggled
 per customer.
 
+The separate `BedrockMarketplaceSubscriptions` statement
+(`aws-marketplace:ViewSubscriptions` / `Subscribe`, `Resource: "*"`) is
+required because Bedrock delivers Anthropic (and other third-party)
+models as AWS Marketplace subscriptions: without it, `InvokeModel` fails
+with `AccessDeniedException … required AWS Marketplace actions
+(aws-marketplace:ViewSubscriptions, aws-marketplace:Subscribe)` even
+though `bedrock:InvokeModel` is granted. These actions do not support
+resource-level scoping, hence `Resource: "*"`.
+
 ## Guardrails
 
 Six deny statements sit in file 03 as a hard backstop, independent of
@@ -323,6 +332,14 @@ whatever the allow statements above grant:
 1. Create an IAM role in the customer's AWS account (trust policy: the
    GitHub Actions self-hosted runner's instance profile, or OIDC federation
    if the runner assumes a role via `sts:AssumeRoleWithWebIdentity`).
+   **OIDC subject gotcha:** newly-created GitHub repos send the IMMUTABLE
+   subject format — `repo:Org@<org-id>/<name>@<repo-id>:...` — while older
+   repos send the classic `repo:Org/<name>:...`. A trust condition written
+   for the wrong form fails with `Not authorized to perform
+   sts:AssumeRoleWithWebIdentity`. Ask GitHub which prefix the repo actually
+   sends (`gh api repos/<org>/<repo>/actions/oidc/customization/sub`,
+   field `sub_claim_prefix`) and build the condition from that; the
+   immutable form also survives repo renames.
 2. Attach all three `tessera-deployment-policy-0*.json` files as
    customer-managed policies on that role.
 3. Use the resulting role ARN wherever the onboarding checklist calls for
