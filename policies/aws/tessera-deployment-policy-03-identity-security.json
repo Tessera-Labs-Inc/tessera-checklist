@@ -241,7 +241,10 @@
       "Resource": "*",
       "Condition": {
         "StringEquals": {
-          "aws:ResourceTag/ManagedBy": "terraform"
+          "aws:ResourceTag/ManagedBy": [
+            "terraform",
+            "Terraform"
+          ]
         }
       }
     },
