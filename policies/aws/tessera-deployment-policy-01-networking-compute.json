@@ -79,6 +79,7 @@
         "ec2:DescribeInstances",
         "ec2:DescribeInstanceAttribute",
         "ec2:ModifyInstanceAttribute",
+        "ec2:ModifyInstanceMetadataOptions",
         "ec2:DescribeInstanceTypes",
         "ec2:DescribeInstanceStatus",
         "ec2:MonitorInstances",
