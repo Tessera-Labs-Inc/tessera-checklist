@@ -1,0 +1,50 @@
+name: Verify IAM Role Permissions
+
+# On-demand check that a given customer IAM role has every permission the
+# tessera-deployment-policy-0*.json files grant, using
+# iam:SimulatePrincipalPolicy. Fails the run and lists exactly which
+# actions are missing or denied.
+
+on:
+  workflow_dispatch:
+    inputs:
+      role_arn:
+        description: "ARN of the IAM role to verify, e.g. arn:aws:iam::123456789012:role/tessera-deploy"
+        required: true
+        type: string
+      policy_dir:
+        description: "Directory of required policy JSON files to check against"
+        required: false
+        default: "policies/aws"
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  verify-permissions:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_VERIFIER_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install boto3
+
+      - name: Verify role has required permissions
+        run: |
+          python3 scripts/verify_role_permissions.py \
+            --role-arn "${{ inputs.role_arn }}" \
+            --policy-dir "${{ inputs.policy_dir }}"
