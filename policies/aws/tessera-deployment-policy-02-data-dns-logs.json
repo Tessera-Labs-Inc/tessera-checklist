@@ -133,6 +133,7 @@
       "Action": [
         "route53:CreateHostedZone",
         "route53:GetHostedZone",
+        "route53:GetDNSSEC",
         "route53:UpdateHostedZoneComment",
         "route53:DeleteHostedZone",
         "route53:ListHostedZones",

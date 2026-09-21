@@ -349,3 +349,26 @@ whatever the allow statements above grant:
 Azure and GCP equivalents follow the same per-service breakdown and live
 alongside this one under `policies/azure/` and `policies/gcp/`
 respectively.
+
+## Verifying a role has these permissions
+
+`.github/workflows/verify-role-permissions.yml` checks a live IAM role
+against every `Allow` action in this directory's policy files, using
+`iam:SimulatePrincipalPolicy`. Run it from the Actions tab
+(`workflow_dispatch`) with the role's ARN — it fails the run and lists
+exactly which actions are missing or denied if the role isn't fully set
+up.
+
+The workflow authenticates via OIDC as a separate CI verifier role (its
+ARN goes in the repo variable `AWS_VERIFIER_ROLE_ARN`), not the role being
+tested. That verifier role needs, at minimum:
+
+- `iam:SimulatePrincipalPolicy`
+- `iam:GetRole`, `iam:GetRolePolicy`, `iam:ListRolePolicies`,
+  `iam:ListAttachedRolePolicies`, `iam:GetPolicy`, `iam:GetPolicyVersion`
+  (IAM's simulator needs to read back the target role's attached and
+  inline policies to evaluate against)
+
+The check can be run against the same account before or after
+onboarding, or against a sandbox account, without needing credentials for
+the target role itself.
