@@ -21,14 +21,24 @@ create_or_update_role() {
   sed "s#<${placeholder}>#${sub}#" "$file" > "$rendered"
   local name
   name=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["Name"])' "$rendered")
-  if az role definition list --custom-role-only true --name "$name" --query '[0].name' -o tsv | grep -q .; then
-    echo "    updating '$name'"
-    # No "Id" in the file: az looks the role up by Name within its AssignableScopes.
-    az role definition update --role-definition "@$rendered" -o none
-  else
-    echo "    creating '$name'"
-    az role definition create --role-definition "@$rendered" -o none
+  # Role listing is eventually consistent, so don't trust an existence check: try to
+  # create, and fall back to update when the tenant already has a role with this name.
+  # (No "Id" in the file: update looks the role up by Name within its AssignableScopes.)
+  local err
+  if err=$(az role definition create --role-definition "@$rendered" -o none 2>&1); then
+    echo "    created '$name'"
+    return
   fi
+  grep -q RoleDefinitionWithSameNameExists <<<"$err" || { echo "$err" >&2; return 1; }
+  for i in $(seq 1 18); do
+    if err=$(az role definition update --role-definition "@$rendered" -o none 2>&1); then
+      echo "    updated '$name'"
+      return
+    fi
+    sleep 10 # existing role not yet visible to update's lookup
+  done
+  echo "$err" >&2
+  return 1
 }
 
 echo "==> Role definitions"
