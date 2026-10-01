@@ -47,7 +47,7 @@ export HUB_ZONES="$ZONE_AKS $ZONE_KV $ZONE_PG $ZONE_REDIS $ZONE_ACR $ZONE_AI"
 
 # Orchestration module version under test.
 export ORCH_REF="${ORCH_REF:-v0.10.2}"
-export K8S_VERSION="${K8S_VERSION:-1.34}"
+export K8S_VERSION="${K8S_VERSION:-1.34.11}" # exact patch: node pools reject a minor-only version
 
 # Local working files (credentials, rendered terraform, logs) - never committed.
 export WORK_DIR="${WORK_DIR:-$HOME/.tessera-azure-temp/${NAME}}"

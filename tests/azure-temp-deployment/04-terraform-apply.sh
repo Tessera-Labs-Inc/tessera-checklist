@@ -49,6 +49,7 @@ module "orchestration" {
   hub_firewall_private_ip  = "${HUB_FIREWALL_IP}"
   enable_firewall          = false
   enable_bastion_host      = false
+  enable_service_endpoints = true # KV/Storage/Sql endpoints on the subnets; KV network ACLs reference them (same as sandbox-internal-azure)
 
   # Hub Private DNS zones (checklist: *_private_dns_zone_id)
   private_dns_zone_id                            = "$(zone_id "$ZONE_AKS")"
@@ -80,7 +81,7 @@ module "orchestration" {
   gpu_node_pool           = { name = "gpu", vm_size = "Standard_NC4as_T4_v3", node_count = 0, enable_auto_scaling = true, min_count = 0, max_count = 1, max_pods = 30, os_disk_size_gb = 64, os_disk_type = "Managed", tags = {}, kubelet_disk_type = "OS", gpu_driver = "None", node_labels = {}, node_taints = {}, max_surge = "1" }
 
   core_postgres = { sku_name = "B_Standard_B1ms", storage_mb = 32768, backup_retention_days = 7 }
-  redis         = { sku_name = "Balanced_B0" }
+  redis         = { sku_name = "Balanced_B1", clustering_policy = "NoCluster", eviction_policy = "AllKeysLRU" } # B0 not offered to this subscription in eastus2
 
   create_windows_jumpbox     = false
   create_linux_jumpbox       = true
