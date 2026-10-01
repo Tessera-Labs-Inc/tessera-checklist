@@ -54,6 +54,12 @@ PY
   echo "NOTE: test-only override - Managed Redis in ${REDIS_LOCATION} (database module ${DB_REF})"
 fi
 
+# PostgreSQL: Azure picks an availability zone when none is set, and the provider then
+# refuses to "change" it back to null on the next apply. Pin whatever zone an existing
+# server already has.
+PG_ZONE=$(az postgres flexible-server show -g "$CORE_RG" -n "${NAME}-coredb-pg" --query availabilityZone -o tsv 2>/dev/null || true)
+PG_ZONE_ARG=$( [ -n "$PG_ZONE" ] && echo ", zone = \"$PG_ZONE\"" || true )
+
 TF_DIR="$WORK_DIR/terraform"
 mkdir -p "$TF_DIR"
 cat > "$TF_DIR/main.tf" <<EOF
@@ -113,7 +119,7 @@ module "orchestration" {
   observability_node_pool = { name = "observe", ${POOL}, node_taints = ["dedicated=observability:NoSchedule"] }
   gpu_node_pool           = { name = "gpu", vm_size = "Standard_NC4as_T4_v3", node_count = 0, enable_auto_scaling = true, min_count = 0, max_count = 1, max_pods = 30, os_disk_size_gb = 64, os_disk_type = "Managed", tags = {}, kubelet_disk_type = "OS", gpu_driver = "None", node_labels = {}, node_taints = {}, max_surge = "1" }
 
-  core_postgres = { sku_name = "B_Standard_B1ms", storage_mb = 32768, backup_retention_days = 7 }
+  core_postgres = { sku_name = "B_Standard_B1ms", storage_mb = 32768, backup_retention_days = 7${PG_ZONE_ARG} }
   redis         = { sku_name = "Balanced_B1", clustering_policy = "NoCluster", eviction_policy = "AllKeysLRU" } # B0 not offered to this subscription in eastus2
 
   create_windows_jumpbox     = false
