@@ -83,11 +83,11 @@ if [ -n "$SOURCE_KV" ]; then
   echo "==> Copying manual secrets ${SOURCE_PREFIX}* from $SOURCE_KV -> ${PREFIX}* in $KV"
   for suffix in victoriametrics mcp--workiq mcp--sap-datasphere mcp--jira mcp--abapilot-ecc mcp--abapilot-s4; do
     if az keyvault secret show --vault-name "$SOURCE_KV" --subscription "$SOURCE_KV_SUB" -n "${SOURCE_PREFIX}${suffix}" \
-         --query value -o tsv > "$TMP/v" 2>/dev/null; then
+         --query value -o tsv > "$TMP/v" 2>"$TMP/err"; then
       az keyvault secret set --vault-name "$KV" -n "${PREFIX}${suffix}" -f "$TMP/v" -o none
       echo "    copied ${suffix}"
     else
-      echo "    skipped ${suffix} (not in $SOURCE_KV)"
+      echo "    skipped ${suffix}: $(grep -oE '\((SecretNotFound|Forbidden)\)[^.]*' "$TMP/err" | head -1)"
     fi
   done
   rm -f "$TMP/v"
