@@ -13,7 +13,9 @@ It plays both sides of the onboarding checklist:
 | 2 | Customer admin | `02-create-roles-and-spn.sh` | The pipeline SPN, with the Tessera custom roles in place of Contributor + UAA / Private DNS Zone Contributor: roles 01–03 at the subscription, role 05 at the core RG, and the hub role at the hub RG. Also Storage Blob Data Contributor on the state account and AcrPull on the ACR. |
 | 3 | Tessera | `03-verify.sh` | "Verify SPN permissions": an effective-permission check, plus an ABAC proof (granting Owner is refused, granting Reader works) |
 | 4 | Tessera | `04-terraform-apply.sh` | "Terraform Apply": orchestration-final run as the SPN with its client secret only |
-| 5 | Both | `05-teardown.sh` | `terraform destroy` as the SPN, then admin cleanup |
+| 6 | Tessera admin | `06-prepare-flux.sh` | Fills kfleet `clusters/sandbox2-azure` with the real workload-identity client IDs and the OIDC issuer, grants AcrPull on the shared `tsravaultdev` registry, and seeds the Key Vault secrets Terraform doesn't create (TLS cert, plus `SOURCE_KV` copies of the manual MCP / langfuse / victoriametrics secrets) |
+| 7 | Tessera admin | `07-flux-bootstrap.sh` | "Bootstrap Flux": copies the signed kfleet artifact JFrog → ACR, then runs the kfleet `bootstrap-*-azure` steps through `az aks command invoke`, because the cluster is private |
+| 5 | Both | `05-teardown.sh` | `terraform destroy` as the SPN, then admin cleanup. Run it last. |
 
 ## Prerequisites
 
@@ -48,7 +50,14 @@ tests/azure-temp-deployment/01-customer-prereqs.sh      # ~10 min
 tests/azure-temp-deployment/02-create-roles-and-spn.sh  # ~1 min, then wait ~5 min for RBAC propagation
 tests/azure-temp-deployment/03-verify.sh                # must pass before step 4
 tests/azure-temp-deployment/04-terraform-apply.sh plan  # optional dry run
-tests/azure-temp-deployment/04-terraform-apply.sh       # ~30-45 min (AKS, PostgreSQL, Managed Redis)
+ADMIN_OID=$(az ad signed-in-user show --query id -o tsv) \
+  tests/azure-temp-deployment/04-terraform-apply.sh       # ~30-45 min; ADMIN_OID = AKS + KV admin for steps 6-7
+
+# Flux (kfleet clusters/sandbox2-azure, cloned from sandbox-internal-azure)
+KFLEET_DIR=~/platform-deployment/kfleet SOURCE_KV=private-sandbox-kv \
+  tests/azure-temp-deployment/06-prepare-flux.sh
+#   -> commit kfleet clusters/sandbox2-azure, merge to kfleet main (push-artifact signs + publishes to JFrog)
+KFLEET_DIR=~/platform-deployment/kfleet tests/azure-temp-deployment/07-flux-bootstrap.sh
 ```
 
 When step 4 fails on permissions, `~/.tessera-azure-temp/<name>/authorization-failures.txt`
