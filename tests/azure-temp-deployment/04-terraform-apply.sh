@@ -20,6 +20,10 @@ zone_id() { echo "/subscriptions/$HUB_SUB_ID/resourceGroups/$HUB_RG/providers/Mi
 RUNNER_IP="${RUNNER_IP:-$(curl -s https://api.ipify.org)}"
 ADMIN_OID="${ADMIN_OID:-}" # platform engineer object ID: KV admin, blob data, AKS RBAC cluster admin (needed for Flux bootstrap)
 POOL='vm_size = "Standard_D2s_v3", node_count = 1, enable_auto_scaling = true, min_count = 1, max_count = 1, max_pods = 30, tags = {}, os_disk_size_gb = 64, max_surge = "1", node_labels = {}'
+# data/observability carry the stateful apps (etcd, ClickHouse, ZooKeeper) - more room, on
+# DSv4 because dev's DSv3 quota is used up by the other pools + jumpbox.
+POOL_DATA='vm_size = "Standard_D2s_v4", node_count = 1, enable_auto_scaling = true, min_count = 1, max_count = 3, max_pods = 30, tags = {}, os_disk_size_gb = 64, max_surge = "1", node_labels = {}'
+POOL_OBS='vm_size = "Standard_D4s_v4", node_count = 1, enable_auto_scaling = true, min_count = 1, max_count = 3, max_pods = 30, tags = {}, os_disk_size_gb = 64, max_surge = "1", node_labels = {}'
 
 ORCH_SOURCE="git::https://github.com/Tessera-Labs-Inc/terraform-azure-modules-orchestration-final.git?ref=${ORCH_REF}"
 # Test-only escape hatch: some subscriptions can't create Azure Managed Redis in every
@@ -114,9 +118,9 @@ module "orchestration" {
   # Temp-test sizing: smallest SKUs, one node per pool.
   system_node_pool        = { name = "system", ${POOL} }
   general_node_pool       = { name = "general", ${POOL}, node_taints = [] }
-  data_node_pool          = { name = "data", ${POOL}, node_taints = [] }
+  data_node_pool          = { name = "data", ${POOL_DATA}, node_taints = [] }
   infra_node_pool         = { name = "infra", ${POOL}, node_taints = ["dedicated=infra:NoSchedule"] }
-  observability_node_pool = { name = "observe", ${POOL}, node_taints = ["dedicated=observability:NoSchedule"] }
+  observability_node_pool = { name = "observe", ${POOL_OBS}, node_taints = ["dedicated=observability:NoSchedule"] }
   gpu_node_pool           = { name = "gpu", vm_size = "Standard_NC4as_T4_v3", node_count = 0, enable_auto_scaling = true, min_count = 0, max_count = 1, max_pods = 30, os_disk_size_gb = 64, os_disk_type = "Managed", tags = {}, kubelet_disk_type = "OS", gpu_driver = "None", node_labels = {}, node_taints = {}, max_surge = "1" }
 
   core_postgres = { sku_name = "B_Standard_B1ms", storage_mb = 32768, backup_retention_days = 7${PG_ZONE_ARG} }
