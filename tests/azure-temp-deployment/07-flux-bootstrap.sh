@@ -20,7 +20,10 @@ SHARED_ACR="${SHARED_ACR:-tsravaultdev}"
 SHARED_ACR_SUB="${SHARED_ACR_SUB:-951b7f30-6e08-4bd5-81a1-bd0cfc563867}"
 ARTIFACT_TAG="${ARTIFACT_TAG:-latest}"
 SRC="${SRC_REPO:-tesseralabs.jfrog.io/tessera-internal-local/kfleet/$KFLEET_CLUSTER}"
-DST="${SHARED_ACR}.azurecr.io/tessera-dev/kfleet/$KFLEET_CLUSTER"
+# Where the cluster's kfleet sync artifact lives (must match the FluxInstance sync url).
+# Default: this environment's own ACR - the source-controller identity has AcrPull there.
+ARTIFACT_REPO="${ARTIFACT_REPO:-${ACR_NAME}.azurecr.io/kfleet/$KFLEET_CLUSTER}"
+DST="$ARTIFACT_REPO"
 CLUSTER="${NAME}-cluster"
 CDIR="$KFLEET_DIR/clusters/$KFLEET_CLUSTER/flux-system"
 
@@ -43,10 +46,12 @@ if [ "$ARTIFACT_SOURCE" = "local" ]; then
   mkdir -p "$STAGE/clusters"
   cp -R "$KFLEET_DIR/clusters/$KFLEET_CLUSTER" "$STAGE/clusters/"
   cp -R "$KFLEET_DIR/tenants" "$STAGE/"
+  DST_ACR="${DST%%.azurecr.io/*}"
+  DST_TOKEN=$(az acr login -n "$DST_ACR" --expose-token --query accessToken -o tsv 2>/dev/null)
   flux push artifact "oci://$DST:$ARTIFACT_TAG" --path "$STAGE" \
     --source "$(git -C "$KFLEET_DIR" config --get remote.origin.url)" \
     --revision "$(git -C "$KFLEET_DIR" rev-parse --abbrev-ref HEAD)@sha1:$(git -C "$KFLEET_DIR" rev-parse HEAD)" \
-    --creds "$ACR_USER:$TOKEN"
+    --creds "$ACR_USER:$DST_TOKEN"
   rm -rf "$STAGE"
 elif [ "$ARTIFACT_SOURCE" = "jfrog" ]; then
   echo "==> Copying $SRC:$ARTIFACT_TAG (+ cosign signature) -> $DST"
