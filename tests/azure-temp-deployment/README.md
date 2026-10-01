@@ -98,5 +98,12 @@ DELETE_ROLES=true tests/azure-temp-deployment/05-teardown.sh  # also deletes the
 - **Small SKUs everywhere.** The GPU pool keeps `Standard_NC4as_T4_v3`
   (the module only accepts N-series) at 0 nodes, so it needs no GPU quota. `encryption_at_host_enabled = false` because the `EncryptionAtHost`
   feature isn't registered in `dev`.
+- **Managed Redis region (`REDIS_LOCATION`, test only).** The `dev`
+  subscription can't create Azure Managed Redis in East US 2 at any SKU
+  ("…is not supported for your subscription in East US 2"). Setting
+  `REDIS_LOCATION=eastus` makes step 4 use a local copy of orchestration-final
+  in which only the `azurerm_managed_redis` resource moves to that region. It's
+  reached through its private endpoint in the VNet's region, so nothing
+  permission-related changes. Customer subscriptions don't need this.
 - **Flux bootstrap and application deployment are out of scope.** This test
   stops at "Infra deployment" on the checklist.

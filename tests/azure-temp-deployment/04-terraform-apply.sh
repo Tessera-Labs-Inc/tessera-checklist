@@ -21,6 +21,39 @@ RUNNER_IP="${RUNNER_IP:-$(curl -s https://api.ipify.org)}"
 ADMIN_OID="${ADMIN_OID:-}" # platform engineer object ID: KV admin, blob data, AKS RBAC cluster admin (needed for Flux bootstrap)
 POOL='vm_size = "Standard_D2s_v3", node_count = 1, enable_auto_scaling = true, min_count = 1, max_count = 1, max_pods = 30, tags = {}, os_disk_size_gb = 64, max_surge = "1", node_labels = {}'
 
+ORCH_SOURCE="git::https://github.com/Tessera-Labs-Inc/terraform-azure-modules-orchestration-final.git?ref=${ORCH_REF}"
+# Test-only escape hatch: some subscriptions can't create Azure Managed Redis in every
+# region ("...is not supported for your subscription in <region>"). With REDIS_LOCATION
+# set, use a local copy of orchestration-final whose database module puts ONLY the
+# azurerm_managed_redis resource in that region (it's reached through its private
+# endpoint in the VNet's region, which Azure supports cross-region). Nothing else -
+# and nothing permission-related - changes.
+if [ -n "${REDIS_LOCATION:-}" ]; then
+  VENDOR="$WORK_DIR/vendor"
+  rm -rf "$VENDOR" && mkdir -p "$VENDOR"
+  git clone -q --depth 1 --branch "$ORCH_REF" \
+    https://github.com/Tessera-Labs-Inc/terraform-azure-modules-orchestration-final.git "$VENDOR/orchestration"
+  DB_REF=$(grep -oE 'terraform-azure-modules-database\?ref=[0-9a-f]+' "$VENDOR/orchestration/main.tf" | cut -d= -f2)
+  git clone -q https://github.com/Tessera-Labs-Inc/terraform-azure-modules-database.git "$VENDOR/orchestration/database"
+  git -C "$VENDOR/orchestration/database" checkout -q "$DB_REF"
+  python3 - "$VENDOR" "$REDIS_LOCATION" <<'PY'
+import re, sys
+vendor, loc = sys.argv[1], sys.argv[2]
+p = f"{vendor}/orchestration/database/main.tf"
+s = open(p).read()
+s, n = re.subn(r'(resource "azurerm_managed_redis" "this" \{[^}]*?location\s*=\s*)var\.location', rf'\g<1>"{loc}"', s, count=1)
+assert n == 1, "azurerm_managed_redis location not found"
+open(p, "w").write(s)
+p = f"{vendor}/orchestration/main.tf"
+s = open(p).read()
+s, n = re.subn(r'source\s*=\s*"github\.com/Tessera-Labs-Inc/terraform-azure-modules-database\?ref=[0-9a-f]+"', 'source = "./database"', s)
+assert n == 1, "database module source not found"
+open(p, "w").write(s)
+PY
+  ORCH_SOURCE="$VENDOR/orchestration"
+  echo "NOTE: test-only override - Managed Redis in ${REDIS_LOCATION} (database module ${DB_REF})"
+fi
+
 TF_DIR="$WORK_DIR/terraform"
 mkdir -p "$TF_DIR"
 cat > "$TF_DIR/main.tf" <<EOF
@@ -29,7 +62,7 @@ terraform {
 }
 
 module "orchestration" {
-  source = "git::https://github.com/Tessera-Labs-Inc/terraform-azure-modules-orchestration-final.git?ref=${ORCH_REF}"
+  source = "${ORCH_SOURCE}"
 
   customer_name       = "${CUSTOMER}"
   environment         = "${ENVIRONMENT}"

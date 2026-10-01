@@ -40,7 +40,6 @@
     "Microsoft.Network/privateEndpoints/privateDnsZoneGroups/delete",
     "Microsoft.Network/locations/operations/read",
     "Microsoft.Network/locations/operationResults/read",
-
     "Microsoft.Compute/virtualMachines/read",
     "Microsoft.Compute/virtualMachines/write",
     "Microsoft.Compute/virtualMachines/delete",
@@ -53,7 +52,6 @@
     "Microsoft.Compute/disks/delete",
     "Microsoft.Compute/locations/operations/read",
     "Microsoft.Compute/locations/diskOperations/read",
-
     "Microsoft.ContainerService/managedClusters/read",
     "Microsoft.ContainerService/managedClusters/write",
     "Microsoft.ContainerService/managedClusters/delete",
@@ -64,13 +62,12 @@
     "Microsoft.ContainerService/managedClusters/maintenanceConfigurations/write",
     "Microsoft.ContainerService/managedClusters/maintenanceConfigurations/delete",
     "Microsoft.ContainerService/managedClusters/upgradeProfiles/read",
+    "Microsoft.ContainerService/managedClusters/availableAgentPoolVersions/read",
     "Microsoft.ContainerService/managedClusters/listClusterUserCredential/action",
     "Microsoft.ContainerService/locations/operations/read",
     "Microsoft.ContainerService/locations/operationresults/read",
     "Microsoft.ContainerService/locations/kubernetesversions/read",
-
     "Microsoft.ContainerRegistry/registries/read",
-
     "Microsoft.ManagedIdentity/userAssignedIdentities/read",
     "Microsoft.ManagedIdentity/userAssignedIdentities/write",
     "Microsoft.ManagedIdentity/userAssignedIdentities/delete",

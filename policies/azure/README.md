@@ -151,6 +151,12 @@ The cluster, its node pools, and the hooks that give pods an identity.
 - `maintenanceConfigurations/*` — the weekly node-OS patch window.
 - `upgradeProfiles/read`, `locations/kubernetesversions/read` — version
   validation during plan.
+- `availableAgentPoolVersions/read` — the azurerm provider checks every node
+  pool's `orchestrator_version` against this list before creating the pool.
+  **Without this action ARM doesn't return a 403.** It filters the list down
+  to an empty one, and the apply fails with a misleading
+  `Version "1.34.11" is not available for Node Pool …` error that never
+  mentions authorization. Found in the temp-deployment test.
 - `listClusterUserCredential/action` — `kubelogin` /
   `az aks get-credentials` for the Flux bootstrap. Local accounts are
   disabled, so `listClusterAdminCredential` is deliberately *not* granted;
