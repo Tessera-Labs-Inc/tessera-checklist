@@ -10,7 +10,7 @@
 #      granted them on this environment's own ACR
 #   c) seed the Key Vault secrets nothing in Terraform creates:
 #      TLS cert (self-signed for *.${CLUSTER_DOMAIN}) and, with SOURCE_KV set, copies of
-#      the manual secrets (langfuse, victoriametrics, MCP credentials) from another vault
+#      the manual secrets (victoriametrics, MCP credentials; langfuse is Terraform-managed) from another vault
 #
 #   KFLEET_DIR=~/platform-deployment/kfleet SOURCE_KV=private-sandbox-kv ./06-prepare-flux.sh
 set -euo pipefail
@@ -81,7 +81,7 @@ az keyvault secret set --vault-name "$KV" -n "tessera-${CUSTOMER}-${ENVIRONMENT}
 
 if [ -n "$SOURCE_KV" ]; then
   echo "==> Copying manual secrets ${SOURCE_PREFIX}* from $SOURCE_KV -> ${PREFIX}* in $KV"
-  for suffix in langfuse victoriametrics mcp--workiq mcp--sap-datasphere mcp--jira mcp--abapilot-ecc mcp--abapilot-s4; do
+  for suffix in victoriametrics mcp--workiq mcp--sap-datasphere mcp--jira mcp--abapilot-ecc mcp--abapilot-s4; do
     if az keyvault secret show --vault-name "$SOURCE_KV" --subscription "$SOURCE_KV_SUB" -n "${SOURCE_PREFIX}${suffix}" \
          --query value -o tsv > "$TMP/v" 2>/dev/null; then
       az keyvault secret set --vault-name "$KV" -n "${PREFIX}${suffix}" -f "$TMP/v" -o none
@@ -92,7 +92,7 @@ if [ -n "$SOURCE_KV" ]; then
   done
   rm -f "$TMP/v"
 else
-  echo "NOTE: SOURCE_KV not set - create ${PREFIX}{langfuse,victoriametrics,mcp--*} by hand for the apps that need them."
+  echo "NOTE: SOURCE_KV not set - create ${PREFIX}{victoriametrics,mcp--*} by hand for the apps that need them."
 fi
 
 echo
