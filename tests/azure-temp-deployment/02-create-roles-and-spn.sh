@@ -23,14 +23,7 @@ create_or_update_role() {
   name=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["Name"])' "$rendered")
   if az role definition list --custom-role-only true --name "$name" --query '[0].name' -o tsv | grep -q .; then
     echo "    updating '$name'"
-    local id
-    id=$(az role definition list --custom-role-only true --name "$name" --query '[0].name' -o tsv)
-    python3 - "$rendered" "$id" <<'EOF'
-import json, sys
-p, rid = sys.argv[1], sys.argv[2]
-d = json.load(open(p)); d["Id"] = rid
-json.dump(d, open(p, "w"), indent=2)
-EOF
+    # No "Id" in the file: az looks the role up by Name within its AssignableScopes.
     az role definition update --role-definition "@$rendered" -o none
   else
     echo "    creating '$name'"
