@@ -95,8 +95,8 @@ DELETE_ROLES=true tests/azure-temp-deployment/05-teardown.sh  # also deletes the
   subnet and the private endpoint instead.
 - **Hub Private DNS zones are linked to the spoke VNet as well as the hub.**
   The checklist instead relies on custom DNS conditional forwarders.
-- **Small SKUs everywhere.** The GPU pool uses `Standard_D2s_v3` with 0
-  nodes. `encryption_at_host_enabled = false` because the `EncryptionAtHost`
+- **Small SKUs everywhere.** The GPU pool keeps `Standard_NC4as_T4_v3`
+  (the module only accepts N-series) at 0 nodes, so it needs no GPU quota. `encryption_at_host_enabled = false` because the `EncryptionAtHost`
   feature isn't registered in `dev`.
 - **Flux bootstrap and application deployment are out of scope.** This test
   stops at "Infra deployment" on the checklist.
