@@ -1,0 +1,74 @@
+name: Verify Azure Role Permissions
+
+# On-demand check that a given customer deployment service principal holds every
+# Action/DataAction the policies/azure/tessera-*-role-*.json definitions grant,
+# by expanding its role assignments (and deny assignments) at the Tessera and hub
+# subscription scopes. Fails the run and lists exactly which permissions are
+# missing or denied.
+
+on:
+  workflow_dispatch:
+    inputs:
+      principal_id:
+        description: "Object ID of the deployment service principal (Enterprise application object ID, not the app/client ID)"
+        required: true
+        type: string
+      subscription_id:
+        description: "Tessera subscription ID"
+        required: true
+        type: string
+      hub_subscription_id:
+        description: "Hub subscription ID (leave empty to skip the hub DNS/peering role check)"
+        required: false
+        default: ""
+        type: string
+      include_optional:
+        description: "Also require the optional greenfield-network role (create_vnet / firewall / bastion)"
+        required: false
+        default: false
+        type: boolean
+      policy_dir:
+        description: "Directory of required role definition JSON files to check against"
+        required: false
+        default: "policies/azure"
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  verify-permissions:
+    runs-on: tessera-runners
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_VERIFIER_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ inputs.subscription_id }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify principal has required permissions
+        env:
+          PRINCIPAL_ID: ${{ inputs.principal_id }}
+          SUBSCRIPTION_ID: ${{ inputs.subscription_id }}
+          HUB_SUBSCRIPTION_ID: ${{ inputs.hub_subscription_id }}
+          INCLUDE_OPTIONAL: ${{ inputs.include_optional }}
+          POLICY_DIR: ${{ inputs.policy_dir }}
+        run: |
+          args=(--principal-id "$PRINCIPAL_ID" --subscription-id "$SUBSCRIPTION_ID" --policy-dir "$POLICY_DIR")
+          if [ -n "$HUB_SUBSCRIPTION_ID" ]; then
+            args+=(--hub-subscription-id "$HUB_SUBSCRIPTION_ID")
+          fi
+          if [ "$INCLUDE_OPTIONAL" = "true" ]; then
+            args+=(--include-optional)
+          fi
+          python3 scripts/verify_azure_role_permissions.py "${args[@]}"

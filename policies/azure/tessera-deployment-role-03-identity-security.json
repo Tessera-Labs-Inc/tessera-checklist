@@ -1,0 +1,42 @@
+{
+  "Name": "Tessera Deployment 03 - Identity and Security",
+  "IsCustom": true,
+  "Description": "Tessera Terraform deploy role, part 3 of 3: Azure RBAC role assignments for workload identities (constrained by the ABAC condition in role-assignment-condition.txt), the optional GitOps Key Vault custom role, subscription/resource-group reads, and resource provider registration.",
+  "Actions": [
+    "Microsoft.Authorization/roleAssignments/read",
+    "Microsoft.Authorization/roleAssignments/write",
+    "Microsoft.Authorization/roleAssignments/delete",
+    "Microsoft.Authorization/roleDefinitions/read",
+    "Microsoft.Authorization/roleDefinitions/write",
+    "Microsoft.Authorization/roleDefinitions/delete",
+
+    "Microsoft.Resources/subscriptions/read",
+    "Microsoft.Resources/subscriptions/resourceGroups/read",
+    "Microsoft.Resources/subscriptions/providers/read",
+    "Microsoft.Resources/providers/read",
+
+    "Microsoft.Network/register/action",
+    "Microsoft.Compute/register/action",
+    "Microsoft.ContainerService/register/action",
+    "Microsoft.ContainerRegistry/register/action",
+    "Microsoft.ManagedIdentity/register/action",
+    "Microsoft.KeyVault/register/action",
+    "Microsoft.Storage/register/action",
+    "Microsoft.DBforPostgreSQL/register/action",
+    "Microsoft.Cache/register/action",
+    "Microsoft.OperationalInsights/register/action",
+    "Microsoft.OperationsManagement/register/action",
+    "Microsoft.Insights/register/action",
+    "microsoft.monitor/register/action",
+    "Microsoft.AlertsManagement/register/action",
+    "Microsoft.Dashboard/register/action",
+    "Microsoft.CognitiveServices/register/action",
+    "Microsoft.PolicyInsights/register/action"
+  ],
+  "NotActions": [],
+  "DataActions": [],
+  "NotDataActions": [],
+  "AssignableScopes": [
+    "/subscriptions/<TESSERA_SUBSCRIPTION_ID>"
+  ]
+}

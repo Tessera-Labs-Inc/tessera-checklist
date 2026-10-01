@@ -1,0 +1,32 @@
+{
+  "Name": "Tessera Deployment 04 - Optional Greenfield Network",
+  "IsCustom": true,
+  "Description": "Optional Tessera Terraform deploy role: only needed when Terraform builds the network itself (create_vnet, enable_firewall or enable_bastion_host = true). BYO-VNet deployments that egress through the customer's hub firewall do not assign this role.",
+  "Actions": [
+    "Microsoft.Network/virtualNetworks/write",
+    "Microsoft.Network/virtualNetworks/delete",
+    "Microsoft.Network/publicIPAddresses/read",
+    "Microsoft.Network/publicIPAddresses/write",
+    "Microsoft.Network/publicIPAddresses/delete",
+    "Microsoft.Network/publicIPAddresses/join/action",
+    "Microsoft.Network/azurefirewalls/read",
+    "Microsoft.Network/azurefirewalls/write",
+    "Microsoft.Network/azurefirewalls/delete",
+    "Microsoft.Network/firewallPolicies/read",
+    "Microsoft.Network/firewallPolicies/write",
+    "Microsoft.Network/firewallPolicies/delete",
+    "Microsoft.Network/firewallPolicies/join/action",
+    "Microsoft.Network/firewallPolicies/ruleCollectionGroups/read",
+    "Microsoft.Network/firewallPolicies/ruleCollectionGroups/write",
+    "Microsoft.Network/firewallPolicies/ruleCollectionGroups/delete",
+    "Microsoft.Network/bastionHosts/read",
+    "Microsoft.Network/bastionHosts/write",
+    "Microsoft.Network/bastionHosts/delete"
+  ],
+  "NotActions": [],
+  "DataActions": [],
+  "NotDataActions": [],
+  "AssignableScopes": [
+    "/subscriptions/<TESSERA_SUBSCRIPTION_ID>"
+  ]
+}
