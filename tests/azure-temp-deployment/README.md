@@ -105,5 +105,10 @@ DELETE_ROLES=true tests/azure-temp-deployment/05-teardown.sh  # also deletes the
   in which only the `azurerm_managed_redis` resource moves to that region. It's
   reached through its private endpoint in the VNet's region, so nothing
   permission-related changes. Customer subscriptions don't need this.
+- **Resizing an existing node pool.** Changing `vm_size` in place needs
+  `temporary_name_for_rotation`, which the AKS wrapper doesn't pass to user
+  pools. Run `terraform taint` on the pool first. The pools use
+  `create_before_destroy` with randomized names, so the new size comes up
+  before the old pool is removed.
 - **Flux bootstrap and application deployment are out of scope.** This test
   stops at "Infra deployment" on the checklist.
