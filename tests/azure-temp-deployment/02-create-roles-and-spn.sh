@@ -45,6 +45,23 @@ for f in "$ROLE_DIR"/tessera-deployment-role-01-*.json "$ROLE_DIR"/tessera-deplo
 done
 create_or_update_role "$ROLE_DIR/tessera-hub-dns-role.json" HUB_SUBSCRIPTION_ID "$HUB_SUB_ID"
 
+echo "==> Waiting for the custom roles to replicate (new role definitions take a few minutes to resolve by name)"
+for name in "Tessera Deployment 01 - Networking and Compute" "Tessera Deployment 02 - Data, DNS and Monitoring" \
+            "Tessera Deployment 03 - Identity and Security" "Tessera Deployment 05 - Key Vault Data (core RG)"; do
+  for i in $(seq 1 30); do
+    az role definition list --name "$name" --scope "/subscriptions/$SUB_ID" --query '[0].name' -o tsv 2>/dev/null | grep -q . && break
+    [ "$i" = 30 ] && { echo "role '$name' still not resolvable after 5 min" >&2; exit 1; }
+    sleep 10
+  done
+done
+for i in $(seq 1 30); do
+  az role definition list --name "Tessera Deployment - Hub Private DNS and Peering" \
+    --scope "/subscriptions/$HUB_SUB_ID" --query '[0].name' -o tsv 2>/dev/null | grep -q . && break
+  [ "$i" = 30 ] && { echo "hub role still not resolvable after 5 min" >&2; exit 1; }
+  sleep 10
+done
+echo "    all roles resolvable"
+
 echo "==> Pipeline service principal"
 if [ ! -f "$WORK_DIR/spn.env" ]; then
   creds=$(az ad sp create-for-rbac --name "$SPN_NAME" --years 1 -o json)
@@ -63,7 +80,7 @@ source "$WORK_DIR/spn.env"
 for _ in $(seq 1 12); do
   SPN_OID=$(az ad sp show --id "$ARM_CLIENT_ID" --query id -o tsv 2>/dev/null) && break || sleep 5
 done
-echo "export SPN_OID=$SPN_OID" >> "$WORK_DIR/spn.env"
+grep -q "^export SPN_OID=" "$WORK_DIR/spn.env" || echo "export SPN_OID=$SPN_OID" >> "$WORK_DIR/spn.env"
 echo "    appId=$ARM_CLIENT_ID objectId=$SPN_OID"
 
 assign() { # role scope [extra args...]
