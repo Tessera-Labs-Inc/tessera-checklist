@@ -14,16 +14,24 @@ Assigned on the **Tessera subscription**:
   route tables, NSGs, private endpoints, jumpbox VMs, AKS and node pools,
   user-assigned managed identities and their federated credentials
 - `tessera-deployment-role-02-data-dns-monitoring.json` — PostgreSQL
-  Flexible Server, Azure Managed Redis, Key Vault (control plane and the
-  secret/key data plane), Storage, Private DNS fallback zones, Log
+  Flexible Server, Azure Managed Redis, Key Vault (control plane), Storage,
+  Private DNS fallback zones, Log
   Analytics / Azure Monitor / metric alerts, AI Foundry
-- `tessera-deployment-role-03-identity-security.json` — role assignments
-  and definitions, subscription reads, resource provider registration.
+- `tessera-deployment-role-03-identity-security.json` — role assignments,
+  role-definition reads, subscription reads, resource provider registration.
   **Assign this one with the ABAC condition in
   `role-assignment-condition.txt`.**
 - `tessera-deployment-role-04-optional-greenfield-network.json` — *only*
   when Terraform builds the network itself (`create_vnet`,
   `enable_firewall`, or `enable_bastion_host` = `true`)
+
+Assigned on the **Tessera core resource group only** (`*-rg.json`):
+
+- `tessera-deployment-role-05-keyvault-data-rg.json` — the Key Vault data
+  plane: the secrets and customer-managed keys Terraform writes into the
+  environment's own vault
+- `tessera-deployment-role-06-optional-gitops-role-definition-rg.json` —
+  *only* with `enable_gitops_kv_secrets_role = true` (default `false`)
 
 Assigned on the **hub subscription**:
 
@@ -35,7 +43,8 @@ The action lists are derived from what
 modules actually create: networking v0.4.0, security-groups v0.3.3,
 keyvault v0.1.6, foundry v0.3.0, storage v0.1.13, database v0.4.2, aks
 v0.3.1 (wrapping `Azure/terraform-azurerm-aks` v11.0.0), aks-pod-identity
-v0.2.3. Every action name has been checked against the live Azure
+v0.2.3. They were re-checked against v0.10.2 (foundry v0.4.0, database
+v0.5.0, aks v0.6.0), which creates the same resource types. Every action name has been checked against the live Azure
 provider-operations catalog (`az provider operation list`).
 
 ## Why several files, and no wildcard actions
@@ -58,6 +67,14 @@ also *assignment* boundaries that Azure forces on us:
 - **The hub role is separate because it's a different subscription.** Its
   `AssignableScopes` is the hub subscription, and it's assigned there (or
   narrower — see Usage).
+- **Roles 05 and 06 are separate because they must never be assigned at
+  subscription scope.** Role 05's DataActions would otherwise reach the
+  secrets and keys in *every* vault in the customer's subscription. Role
+  06's `roleDefinitions/write` would let the SPN edit its own custom roles,
+  since roles 01–03 are assignable at the subscription. It could then add
+  `*` to them without ever creating a role assignment, which bypasses the
+  ABAC condition. At the core resource group, role 06 can only touch role
+  definitions scoped inside that group.
 - **Role 04 is separate because the checklist's topology never needs it.**
   The checklist is a BYO-VNet, hub-and-spoke deployment that egresses
   through the customer's hub firewall (`hub_firewall_private_ip`). Keeping
@@ -206,7 +223,7 @@ endpoint, and SAP connection details.
   `purge_soft_delete_on_destroy = true`, so it looks for and recovers a
   soft-deleted vault of the same name across a teardown/redeploy. It purges
   on destroy unless purge protection is on.
-- **Data plane** (`DataActions`) — the secrets themselves.
+- **Data plane** (`DataActions`, role 05) — the secrets themselves.
   `getSecret`/`setSecret`/`readMetadata`/`delete`, plus `recover` and
   `purge` for the same soft-delete reasons at the secret level. The vault
   is created with `enable_rbac_authorization = true` and the module does
@@ -219,9 +236,9 @@ endpoint, and SAP connection details.
   refresh, even if none is set.
 
 Because the vault doesn't exist until Terraform creates it, these
-DataActions can't be scoped to it in advance. They apply to every vault in
-the scope the role is assigned at, which is a reason to assign at the core
-resource group rather than the subscription (see Usage).
+DataActions can't be scoped to the vault itself in advance. Role 05 is
+assigned at the core resource group, where Terraform creates the vault, so
+they never reach other vaults in the customer's subscription.
 
 ### Storage (role 02)
 
@@ -297,10 +314,12 @@ Terraform creates these role assignments:
 | Cognitive Services User | backend identity | AI Foundry account |
 
 - `roleAssignments/read/write/delete` — creating and removing those.
-- `roleDefinitions/read/write/delete` — the optional GitOps
-  `<cluster>-secrets-read-gitops` custom role
-  (`enable_gitops_kv_secrets_role`, default `false`), plus resolving
-  built-in role names to IDs.
+- `roleDefinitions/read` — resolving built-in role names to IDs.
+  `roleDefinitions/write`/`delete` are deliberately **not** in role 03 (see
+  roles 05/06 above). They're only needed for the optional GitOps
+  `<cluster>-secrets-read-gitops` custom role, which Terraform creates
+  scoped to the vault but never assigns. That's role 06, at the core
+  resource group.
 - `Microsoft.Resources/subscriptions/read`,
   `subscriptions/resourceGroups/read` — the `azurerm_subscription` /
   `azurerm_client_config` data sources and resource-group lookups.
@@ -428,7 +447,7 @@ checklist's Azure DevOps subnet) require public network access set to
    ```bash
    TESSERA_SUB=<tessera-subscription-id>
    HUB_SUB=<hub-subscription-id>
-   for f in policies/azure/tessera-deployment-role-0*.json; do
+   for f in policies/azure/tessera-deployment-role-0*.json; do   # skip 04 / 06 if unused
      sed "s/<TESSERA_SUBSCRIPTION_ID>/$TESSERA_SUB/" "$f" > /tmp/role.json
      az role definition create --role-definition @/tmp/role.json
    done
@@ -436,7 +455,8 @@ checklist's Azure DevOps subnet) require public network access set to
    az role definition create --role-definition @/tmp/role.json
    ```
 
-   Skip role 04 for a BYO-VNet deployment.
+   Skip role 04 for a BYO-VNet deployment, and role 06 unless
+   `enable_gitops_kv_secrets_role = true`.
 
 2. Assign them to the pipeline SPN. Use its **object ID** (Enterprise
    application → Object ID), not the client ID:
@@ -456,20 +476,18 @@ checklist's Azure DevOps subnet) require public network access set to
      --condition-version 2.0
    az role assignment create --assignee-object-id "$SPN_OID" \
      --assignee-principal-type ServicePrincipal \
+     --role "Tessera Deployment 05 - Key Vault Data (core RG)" \
+     --scope "$SCOPE/resourceGroups/<core-rg>"     # never the subscription
+   az role assignment create --assignee-object-id "$SPN_OID" \
+     --assignee-principal-type ServicePrincipal \
      --role "Tessera Deployment - Hub Private DNS and Peering" \
      --scope /subscriptions/$HUB_SUB
    ```
 
-   **Scope:** subscription scope is the simple option. The AKS node
+   **Scope:** roles 01–03 go at the Tessera subscription. The AKS node
    resource group is created by AKS at apply time, and Terraform assigns a
    role on it, so a role-03 scope narrower than the subscription won't
-   cover it.
-
-   Roles 01 and 02 *can* be assigned at the core resource group instead,
-   which also confines the Key Vault DataActions to vaults in that group.
-   In that case, also assign them on the resource groups holding the ACR,
-   the pre-created AKS identity, and the spoke VNet, if those are
-   elsewhere.
+   cover it. Roles 05 and 06 go at the core resource group only.
 
    The hub role can be narrowed from the hub subscription to the resource
    group holding the hub Private DNS zones and the hub VNet.
@@ -504,8 +522,12 @@ Azure has no counterpart to `iam:SimulatePrincipalPolicy`, so
 `scripts/verify_azure_role_permissions.py` evaluates permissions the way
 ARM does:
 
-1. Lists the principal's role assignments at or above each subscription,
-   including assignments inherited through group membership.
+1. Lists the principal's role assignments at or above each scope
+   (`atScope()` returns assignments at *and above* the scope, so
+   management-group and root assignments count). Group-inherited
+   assignments are included too. Each role file is checked at the scope
+   it's meant to be assigned at: the subscription, the core resource group
+   (`*-rg.json`), or the hub.
 2. Expands each role's `Actions − NotActions` and
    `DataActions − NotDataActions` with wildcard matching.
 3. Removes anything a deny assignment blocks.
@@ -523,12 +545,13 @@ The workflow signs in via OIDC as a separate verifier identity (repo
 variables `AZURE_VERIFIER_CLIENT_ID` and `AZURE_TENANT_ID`), not as the SPN
 being tested. That identity needs **Reader** on the Tessera and hub
 subscriptions, which covers `roleAssignments/read`, `roleDefinitions/read`,
-and `denyAssignments/read`.
+and `denyAssignments/read`. Without it, the check stops with a clear error
+(exit code 2) instead of a partial report.
 
 The same script runs locally after `az login`:
 
 ```bash
 python3 scripts/verify_azure_role_permissions.py \
   --principal-id <spn-object-id> --subscription-id <tessera-sub> \
-  --hub-subscription-id <hub-sub>
+  --resource-group <core-rg> --hub-subscription-id <hub-sub>
 ```

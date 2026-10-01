@@ -1,0 +1,26 @@
+{
+  "Name": "Tessera Deployment 05 - Key Vault Data (core RG)",
+  "IsCustom": true,
+  "Description": "Tessera Terraform deploy role, Key Vault data plane: the secrets and customer-managed keys Terraform writes into the environment's own vault. Assign at the Tessera core resource group ONLY (where Terraform creates the vault), never at subscription scope, so it can't reach other vaults in the customer's subscription.",
+  "Actions": [],
+  "NotActions": [],
+  "DataActions": [
+    "Microsoft.KeyVault/vaults/secrets/getSecret/action",
+    "Microsoft.KeyVault/vaults/secrets/setSecret/action",
+    "Microsoft.KeyVault/vaults/secrets/readMetadata/action",
+    "Microsoft.KeyVault/vaults/secrets/delete",
+    "Microsoft.KeyVault/vaults/secrets/recover/action",
+    "Microsoft.KeyVault/vaults/secrets/purge/action",
+    "Microsoft.KeyVault/vaults/keys/read",
+    "Microsoft.KeyVault/vaults/keys/create/action",
+    "Microsoft.KeyVault/vaults/keys/update/action",
+    "Microsoft.KeyVault/vaults/keys/delete",
+    "Microsoft.KeyVault/vaults/keys/recover/action",
+    "Microsoft.KeyVault/vaults/keys/purge/action",
+    "Microsoft.KeyVault/vaults/keyrotationpolicies/read"
+  ],
+  "NotDataActions": [],
+  "AssignableScopes": [
+    "/subscriptions/<TESSERA_SUBSCRIPTION_ID>"
+  ]
+}

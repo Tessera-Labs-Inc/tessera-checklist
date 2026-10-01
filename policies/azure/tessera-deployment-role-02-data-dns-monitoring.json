@@ -1,7 +1,7 @@
 {
   "Name": "Tessera Deployment 02 - Data, DNS and Monitoring",
   "IsCustom": true,
-  "Description": "Tessera Terraform deploy role, part 2 of 3: PostgreSQL Flexible Server, Azure Managed Redis, Key Vault (control plane plus the secret/key data plane Terraform writes), Storage, spoke-local Private DNS fallback zones, Log Analytics / Azure Monitor / alerts, and AI Foundry.",
+  "Description": "Tessera Terraform deploy role, part 2 of 3: PostgreSQL Flexible Server, Azure Managed Redis, Key Vault (control plane only - the secret/key data plane is role 05, assigned at the core resource group), Storage, spoke-local Private DNS fallback zones, Log Analytics / Azure Monitor / alerts, and AI Foundry.",
   "Actions": [
     "Microsoft.DBforPostgreSQL/flexibleServers/read",
     "Microsoft.DBforPostgreSQL/flexibleServers/write",
@@ -14,7 +14,6 @@
     "Microsoft.DBforPostgreSQL/locations/capabilities/read",
     "Microsoft.DBforPostgreSQL/locations/azureAsyncOperation/read",
     "Microsoft.DBforPostgreSQL/locations/operationResults/read",
-
     "Microsoft.Cache/redisEnterprise/read",
     "Microsoft.Cache/redisEnterprise/write",
     "Microsoft.Cache/redisEnterprise/delete",
@@ -29,7 +28,6 @@
     "Microsoft.Cache/locations/asyncOperations/read",
     "Microsoft.Cache/locations/operationResults/read",
     "Microsoft.Cache/locations/operationsStatus/read",
-
     "Microsoft.KeyVault/vaults/read",
     "Microsoft.KeyVault/vaults/write",
     "Microsoft.KeyVault/vaults/delete",
@@ -42,7 +40,6 @@
     "Microsoft.KeyVault/locations/deletedVaults/read",
     "Microsoft.KeyVault/locations/deletedVaults/purge/action",
     "Microsoft.KeyVault/locations/operationResults/read",
-
     "Microsoft.Storage/storageAccounts/read",
     "Microsoft.Storage/storageAccounts/write",
     "Microsoft.Storage/storageAccounts/delete",
@@ -55,7 +52,6 @@
     "Microsoft.Storage/storageAccounts/fileServices/read",
     "Microsoft.Storage/storageAccounts/queueServices/read",
     "Microsoft.Storage/checknameavailability/read",
-
     "Microsoft.Network/privateDnsZones/read",
     "Microsoft.Network/privateDnsZones/write",
     "Microsoft.Network/privateDnsZones/delete",
@@ -70,7 +66,6 @@
     "Microsoft.Network/privateDnsZones/virtualNetworkLinks/delete",
     "Microsoft.Network/privateDnsOperationResults/read",
     "Microsoft.Network/privateDnsOperationStatuses/read",
-
     "Microsoft.OperationalInsights/workspaces/read",
     "Microsoft.OperationalInsights/workspaces/write",
     "Microsoft.OperationalInsights/workspaces/delete",
@@ -98,7 +93,6 @@
     "Microsoft.Dashboard/grafana/read",
     "Microsoft.Dashboard/grafana/write",
     "Microsoft.Dashboard/grafana/delete",
-
     "Microsoft.CognitiveServices/accounts/read",
     "Microsoft.CognitiveServices/accounts/write",
     "Microsoft.CognitiveServices/accounts/delete",
@@ -112,21 +106,7 @@
     "Microsoft.CognitiveServices/locations/resourceGroups/deletedAccounts/delete"
   ],
   "NotActions": [],
-  "DataActions": [
-    "Microsoft.KeyVault/vaults/secrets/getSecret/action",
-    "Microsoft.KeyVault/vaults/secrets/setSecret/action",
-    "Microsoft.KeyVault/vaults/secrets/readMetadata/action",
-    "Microsoft.KeyVault/vaults/secrets/delete",
-    "Microsoft.KeyVault/vaults/secrets/recover/action",
-    "Microsoft.KeyVault/vaults/secrets/purge/action",
-    "Microsoft.KeyVault/vaults/keys/read",
-    "Microsoft.KeyVault/vaults/keys/create/action",
-    "Microsoft.KeyVault/vaults/keys/update/action",
-    "Microsoft.KeyVault/vaults/keys/delete",
-    "Microsoft.KeyVault/vaults/keys/recover/action",
-    "Microsoft.KeyVault/vaults/keys/purge/action",
-    "Microsoft.KeyVault/vaults/keyrotationpolicies/read"
-  ],
+  "DataActions": [],
   "NotDataActions": [],
   "AssignableScopes": [
     "/subscriptions/<TESSERA_SUBSCRIPTION_ID>"

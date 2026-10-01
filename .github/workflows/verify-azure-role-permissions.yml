@@ -17,13 +17,22 @@ on:
         description: "Tessera subscription ID"
         required: true
         type: string
+      resource_group:
+        description: "Tessera core resource group (checks the Key Vault data role, *-rg.json)"
+        required: true
+        type: string
       hub_subscription_id:
         description: "Hub subscription ID (leave empty to skip the hub DNS/peering role check)"
         required: false
         default: ""
         type: string
+      hub_resource_group:
+        description: "Hub resource group, if the hub role is assigned there rather than on the whole hub subscription"
+        required: false
+        default: ""
+        type: string
       include_optional:
-        description: "Also require the optional greenfield-network role (create_vnet / firewall / bastion)"
+        description: "Also require the optional roles (greenfield network; GitOps role definition)"
         required: false
         default: false
         type: boolean
@@ -60,13 +69,19 @@ jobs:
         env:
           PRINCIPAL_ID: ${{ inputs.principal_id }}
           SUBSCRIPTION_ID: ${{ inputs.subscription_id }}
+          RESOURCE_GROUP: ${{ inputs.resource_group }}
           HUB_SUBSCRIPTION_ID: ${{ inputs.hub_subscription_id }}
+          HUB_RESOURCE_GROUP: ${{ inputs.hub_resource_group }}
           INCLUDE_OPTIONAL: ${{ inputs.include_optional }}
           POLICY_DIR: ${{ inputs.policy_dir }}
         run: |
-          args=(--principal-id "$PRINCIPAL_ID" --subscription-id "$SUBSCRIPTION_ID" --policy-dir "$POLICY_DIR")
+          args=(--principal-id "$PRINCIPAL_ID" --subscription-id "$SUBSCRIPTION_ID" \
+            --resource-group "$RESOURCE_GROUP" --policy-dir "$POLICY_DIR")
           if [ -n "$HUB_SUBSCRIPTION_ID" ]; then
             args+=(--hub-subscription-id "$HUB_SUBSCRIPTION_ID")
+            if [ -n "$HUB_RESOURCE_GROUP" ]; then
+              args+=(--hub-resource-group "$HUB_RESOURCE_GROUP")
+            fi
           fi
           if [ "$INCLUDE_OPTIONAL" = "true" ]; then
             args+=(--include-optional)

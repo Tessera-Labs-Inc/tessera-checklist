@@ -1,0 +1,16 @@
+{
+  "Name": "Tessera Deployment 06 - Optional GitOps Role Definition (core RG)",
+  "IsCustom": true,
+  "Description": "Optional: only when enable_gitops_kv_secrets_role = true, so Terraform can create the '<cluster>-secrets-read-gitops' custom role scoped to the environment's Key Vault. Assign at the Tessera core resource group ONLY: role definitions whose assignable scopes are wider (such as the Tessera deployment roles themselves, scoped to the subscription) stay out of reach.",
+  "Actions": [
+    "Microsoft.Authorization/roleDefinitions/read",
+    "Microsoft.Authorization/roleDefinitions/write",
+    "Microsoft.Authorization/roleDefinitions/delete"
+  ],
+  "NotActions": [],
+  "DataActions": [],
+  "NotDataActions": [],
+  "AssignableScopes": [
+    "/subscriptions/<TESSERA_SUBSCRIPTION_ID>"
+  ]
+}

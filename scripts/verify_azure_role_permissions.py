@@ -11,14 +11,17 @@ effective permissions the same way ARM authorizes a request:
      (DataActions - NotDataActions), wildcard-matched, case-insensitive.
   3. Subtract anything a deny assignment at that scope blocks for the principal.
 
-Required permissions come from policies/azure/*.json. Files with "hub" in the name
-are checked against --hub-subscription-id; files with "optional" in the name are
-only checked with --include-optional. Uses the Azure CLI's login for a token, so
+Required permissions come from policies/azure/*.json, checked at the scope each role
+is meant to be assigned at: files with "hub" in the name at --hub-subscription-id
+(or --hub-resource-group), files ending "-rg.json" at the Tessera core resource group
+(--resource-group), everything else at the Tessera subscription. Files with
+"optional" in the name are only checked with --include-optional. Uses the Azure CLI's login for a token, so
 run `az login` (or azure/login in CI) first; no extra Python packages are needed.
 
 Usage:
     python3 verify_azure_role_permissions.py --principal-id <object-id> \\
         --subscription-id <tessera-sub> [--hub-subscription-id <hub-sub>] \\
+        [--resource-group <core-rg>] [--hub-resource-group <hub-rg>] \\
         [--policy-dir policies/azure] [--include-optional]
 """
 import argparse
@@ -28,6 +31,7 @@ import json
 import os
 import subprocess
 import sys
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -55,25 +59,38 @@ def get_token():
     return json.loads(out)["accessToken"]
 
 
+class ArmError(Exception):
+    pass
+
+
+def urlopen_json(url, token):
+    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
+    try:
+        with urllib.request.urlopen(req) as resp:
+            return json.load(resp)
+    except urllib.error.HTTPError as e:
+        try:
+            err = json.load(e).get("error", {})
+            detail = f"{err.get('code', e.code)}: {err.get('message', e.reason)}"
+        except Exception:
+            detail = f"HTTP {e.code} {e.reason}"
+        raise ArmError(detail) from None
+
+
 def arm_get_all(token, path, params):
     """GET an ARM list endpoint, following nextLink."""
     query = urllib.parse.urlencode({"api-version": API_VERSION, **params}, quote_via=urllib.parse.quote)
     url = f"{ARM}{path}?{query}"
     items = []
     while url:
-        req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
-        with urllib.request.urlopen(req) as resp:
-            body = json.load(resp)
+        body = urlopen_json(url, token)
         items.extend(body.get("value", []))
         url = body.get("nextLink")
     return items
 
 
 def arm_get(token, path):
-    url = f"{ARM}{path}?api-version={API_VERSION}"
-    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
-    with urllib.request.urlopen(req) as resp:
-        return json.load(resp)
+    return urlopen_json(f"{ARM}{path}?api-version={API_VERSION}", token)
 
 
 def matches(pattern, action):
@@ -81,13 +98,18 @@ def matches(pattern, action):
 
 
 def load_required(policy_dir, include_optional):
-    """Return {"tessera": {...}, "hub": {...}}, each (kind, action) -> set of source files."""
-    required = {"tessera": {}, "hub": {}}
+    """Return {"tessera": {...}, "tessera_rg": {...}, "hub": {...}}, each (kind, action) -> set of source files."""
+    required = {"tessera": {}, "tessera_rg": {}, "hub": {}}
     for path in sorted(glob.glob(os.path.join(policy_dir, "*.json"))):
         name = os.path.basename(path)
         if "optional" in name and not include_optional:
             continue
-        target = "hub" if "hub" in name else "tessera"
+        if "hub" in name:
+            target = "hub"
+        elif name.endswith("-rg.json"):
+            target = "tessera_rg"
+        else:
+            target = "tessera"
         with open(path) as f:
             role = json.load(f)
         for kind, key in (("action", "Actions"), ("dataAction", "DataActions")):
@@ -193,7 +215,15 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--principal-id", required=True, help="Object ID of the deployment service principal")
     parser.add_argument("--subscription-id", required=True, help="Tessera subscription ID")
+    parser.add_argument(
+        "--resource-group",
+        help="Tessera core resource group (where the *-rg.json roles are assigned)",
+    )
     parser.add_argument("--hub-subscription-id", help="Hub subscription ID (checks the hub DNS/peering role)")
+    parser.add_argument(
+        "--hub-resource-group",
+        help="Check the hub role at this hub resource group instead of the whole hub subscription",
+    )
     parser.add_argument("--policy-dir", default="policies/azure", help="Directory of role definition JSON files")
     parser.add_argument(
         "--include-optional",
@@ -208,16 +238,33 @@ def main():
         sys.exit(1)
 
     token = get_token()
-    targets = [("Tessera subscription", f"/subscriptions/{args.subscription_id}", required["tessera"])]
+    sub_scope = f"/subscriptions/{args.subscription_id}"
+    targets = [("Tessera subscription", sub_scope, required["tessera"])]
+    if args.resource_group:
+        targets.append(("Tessera core resource group", f"{sub_scope}/resourceGroups/{args.resource_group}", required["tessera_rg"]))
+    elif required["tessera_rg"]:
+        print("Note: --resource-group not given; skipping the core-resource-group roles (*-rg.json).\n")
     if args.hub_subscription_id:
-        targets.append(("Hub subscription", f"/subscriptions/{args.hub_subscription_id}", required["hub"]))
+        hub_scope = f"/subscriptions/{args.hub_subscription_id}"
+        if args.hub_resource_group:
+            hub_scope += f"/resourceGroups/{args.hub_resource_group}"
+        targets.append(("Hub subscription", hub_scope, required["hub"]))
     elif required["hub"]:
         print("Note: --hub-subscription-id not given; skipping the hub DNS/peering role check.\n")
 
     results = []
     warnings = []
     for label, scope, req in targets:
-        grants, denies, scope_warnings = effective_grants(token, scope, args.principal_id)
+        try:
+            grants, denies, scope_warnings = effective_grants(token, scope, args.principal_id)
+        except ArmError as e:
+            print(
+                f"ERROR: could not read role assignments at {scope}: {e}\n"
+                "The identity running this check needs Reader (roleAssignments/read, roleDefinitions/read, "
+                "denyAssignments/read) on every scope it checks.",
+                file=sys.stderr,
+            )
+            sys.exit(2)
         warnings.extend(scope_warnings)
         if label == "Tessera subscription":
             for role in role_assignment_write_unconditioned(grants):
