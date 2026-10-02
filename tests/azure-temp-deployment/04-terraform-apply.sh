@@ -20,9 +20,10 @@ zone_id() { echo "/subscriptions/$HUB_SUB_ID/resourceGroups/$HUB_RG/providers/Mi
 RUNNER_IP="${RUNNER_IP:-$(curl -s https://api.ipify.org)}"
 ADMIN_OID="${ADMIN_OID:-}" # platform engineer object ID: KV admin, blob data, AKS RBAC cluster admin (needed for Flux bootstrap)
 POOL='vm_size = "Standard_D2s_v3", node_count = 1, enable_auto_scaling = true, min_count = 1, max_count = 1, max_pods = 30, tags = {}, os_disk_size_gb = 64, max_surge = "1", node_labels = {}'
-# data/observability carry the stateful apps (etcd, ClickHouse, ZooKeeper) - more room, on
-# DSv4 because dev's DSv3 quota is used up by the other pools + jumpbox.
-POOL_DATA='vm_size = "Standard_D2s_v4", node_count = 1, enable_auto_scaling = true, min_count = 1, max_count = 4, max_pods = 30, tags = {}, os_disk_size_gb = 64, max_surge = "1", node_labels = {}'
+# data/observability carry the stateful apps (etcd, ClickHouse, ZooKeeper, Milvus); data-processing
+# requests 24Gi on role=data, so data is memory-optimized (checklist sizes it E16s_v3).
+# observability is on DSv4 because dev's DSv3 quota is used up by the other pools + jumpbox.
+POOL_DATA='vm_size = "Standard_E4s_v3", node_count = 1, enable_auto_scaling = true, min_count = 1, max_count = 2, max_pods = 30, tags = {}, os_disk_size_gb = 64, max_surge = "1", node_labels = {}'
 POOL_OBS='vm_size = "Standard_D4s_v4", node_count = 1, enable_auto_scaling = true, min_count = 1, max_count = 3, max_pods = 30, tags = {}, os_disk_size_gb = 64, max_surge = "1", node_labels = {}'
 
 ORCH_SOURCE="git::https://github.com/Tessera-Labs-Inc/terraform-azure-modules-orchestration-final.git?ref=${ORCH_REF}"
