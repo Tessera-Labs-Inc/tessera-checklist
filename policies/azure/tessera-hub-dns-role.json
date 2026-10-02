@@ -1,0 +1,34 @@
+{
+  "Name": "Tessera Deployment - Hub Private DNS and Peering",
+  "IsCustom": true,
+  "Description": "Tessera Terraform deploy role for the customer's HUB subscription: register private-endpoint A records in the pre-created hub Private DNS zones (Key Vault, PostgreSQL, Redis, AKS, ACR, AI Foundry), link zones to the Tessera spoke VNet, and (when enable_hub_peering = true) create the hub-side VNet peering. Replaces 'Private DNS Zone Contributor' on the hub subscription.",
+  "Actions": [
+    "Microsoft.Resources/subscriptions/read",
+    "Microsoft.Resources/subscriptions/resourceGroups/read",
+
+    "Microsoft.Network/privateDnsZones/read",
+    "Microsoft.Network/privateDnsZones/join/action",
+    "Microsoft.Network/privateDnsZones/SOA/read",
+    "Microsoft.Network/privateDnsZones/A/read",
+    "Microsoft.Network/privateDnsZones/A/write",
+    "Microsoft.Network/privateDnsZones/A/delete",
+    "Microsoft.Network/privateDnsZones/virtualNetworkLinks/read",
+    "Microsoft.Network/privateDnsZones/virtualNetworkLinks/write",
+    "Microsoft.Network/privateDnsOperationResults/read",
+    "Microsoft.Network/privateDnsOperationStatuses/read",
+
+    "Microsoft.Network/virtualNetworks/read",
+    "Microsoft.Network/virtualNetworks/peer/action",
+    "Microsoft.Network/virtualNetworks/virtualNetworkPeerings/read",
+    "Microsoft.Network/virtualNetworks/virtualNetworkPeerings/write",
+    "Microsoft.Network/virtualNetworks/virtualNetworkPeerings/delete",
+    "Microsoft.Network/locations/operations/read",
+    "Microsoft.Network/locations/operationResults/read"
+  ],
+  "NotActions": [],
+  "DataActions": [],
+  "NotDataActions": [],
+  "AssignableScopes": [
+    "/subscriptions/<HUB_SUBSCRIPTION_ID>"
+  ]
+}

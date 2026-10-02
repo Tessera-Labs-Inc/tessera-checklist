@@ -1,0 +1,16 @@
+[
+  {
+    "policyDefinitionReferenceId": "DenyPublicPostgreSQLFlexibleServer",
+    "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/5e1de0e3-42cb-4ebc-a86d-61d0c619ca48",
+    "parameters": {
+      "effect": { "value": "Deny" }
+    }
+  },
+  {
+    "policyDefinitionReferenceId": "DenyPublicBlobAccess",
+    "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/4fa4b6c0-31ca-4c0d-b10d-24b96f62a751",
+    "parameters": {
+      "effect": { "value": "Deny" }
+    }
+  }
+]
