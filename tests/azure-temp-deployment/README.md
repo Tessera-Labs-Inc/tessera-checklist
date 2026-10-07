@@ -37,6 +37,11 @@ defaults are:
 - **Location:** `eastus2`.
 - **Module:** orchestration-final `v0.10.2`.
 
+For the isolated credential-store test, export `CREDENTIAL_STORE_TEST=true` before
+running the steps. It defaults to a separate `vaulttest-temp` environment and
+pins orchestration-final `v0.11.1`. The module creates a private credential
+vault with a vault-scoped Backend grant. Foundry release stays off.
+
 Credentials, rendered Terraform, and logs go to `~/.tessera-azure-temp/<name>/`
 (mode 700), never into the repo.
 
@@ -60,7 +65,31 @@ KFLEET_DIR=~/platform-deployment/kfleet SOURCE_KV=private-sandbox-kv \
 KFLEET_DIR=~/platform-deployment/kfleet tests/azure-temp-deployment/07-flux-bootstrap.sh
 ```
 
-When step 4 fails on permissions, `~/.tessera-azure-temp/<name>/authorization-failures.txt`
+For the credential-store variant, run steps 1, 4, 6, and 7 with
+`CREDENTIAL_STORE_TEST=true`. Skip steps 2 and 3. Platform must use an admin
+Azure CLI session for step 4 because the module creates and assigns a custom
+vault role. The role-test service principal deliberately lacks that authority.
+Step 1 grants the admin data access to the test's Terraform state account.
+Use the `kfleet` `sandbox2-azure` draft. Don't copy secrets from another vault
+into this synthetic test environment.
+
+```bash
+export CREDENTIAL_STORE_TEST=true
+tests/azure-temp-deployment/01-customer-prereqs.sh
+tests/azure-temp-deployment/04-terraform-apply.sh plan
+tests/azure-temp-deployment/04-terraform-apply.sh
+KFLEET_DIR=~/platform-deployment/kfleet SOURCE_KV= tests/azure-temp-deployment/06-prepare-flux.sh
+# Review and merge the filled kfleet draft before bootstrap.
+KFLEET_DIR=~/platform-deployment/kfleet ARTIFACT_SOURCE=jfrog tests/azure-temp-deployment/07-flux-bootstrap.sh
+```
+
+Step 6 fills the cluster's identity and vault placeholders. Step 7 copies its
+signed artifact. Enable the deployment-wide policy only in this isolated
+cluster, after the images and enrollment path are ready. Run step 5 from the
+same admin session to tear it down.
+
+In the role test, when step 4 fails on permissions,
+`~/.tessera-azure-temp/<name>/authorization-failures.txt`
 lists each missing action and the scope it was needed on. To fix one:
 
 1. Add the action to the right `policies/azure/*.json` file.
@@ -110,5 +139,6 @@ DELETE_ROLES=true tests/azure-temp-deployment/05-teardown.sh  # also deletes the
   pools. Run `terraform taint` on the pool first. The pools use
   `create_before_destroy` with randomized names, so the new size comes up
   before the old pool is removed.
-- **Flux bootstrap and application deployment are out of scope.** This test
-  stops at "Infra deployment" on the checklist.
+- **The original role test stops at infrastructure.** The opt-in
+  credential-store test continues through Flux, enrollment, and application
+  acceptance in the isolated cluster.

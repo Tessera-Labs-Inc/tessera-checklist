@@ -9,7 +9,13 @@ export HUB_SUB_ID="${HUB_SUB_ID:-$SUB_ID}"
 export LOCATION="${LOCATION:-eastus2}"
 
 # customer_name / environment for the orchestration module (lowercase, a-z0-9-).
-export CUSTOMER="${CUSTOMER:-rbactest}"
+export CREDENTIAL_STORE_TEST="${CREDENTIAL_STORE_TEST:-false}"
+case "$CREDENTIAL_STORE_TEST" in
+  true) DEFAULT_CUSTOMER="vaulttest" ;;
+  false) DEFAULT_CUSTOMER="rbactest" ;;
+  *) echo "CREDENTIAL_STORE_TEST must be true or false" >&2; return 1 2>/dev/null || exit 1 ;;
+esac
+export CUSTOMER="${CUSTOMER:-$DEFAULT_CUSTOMER}"
 export ENVIRONMENT="${ENVIRONMENT:-temp}"
 export NAME="tessera-${CUSTOMER}-${ENVIRONMENT}"
 export SHORT="tsr${CUSTOMER}${ENVIRONMENT}" # alphanumeric names (ACR, storage)
@@ -45,8 +51,12 @@ export ZONE_ACR="privatelink.azurecr.io"
 export ZONE_AI="privatelink.services.ai.azure.com"
 export HUB_ZONES="$ZONE_AKS $ZONE_KV $ZONE_PG $ZONE_REDIS $ZONE_ACR $ZONE_AI"
 
-# Orchestration module version under test.
-export ORCH_REF="${ORCH_REF:-v0.10.2}"
+# The credential-store test opts into the module that provisions a separate
+# vault and a vault-scoped Backend grant. Existing role tests keep their pin.
+case "$CREDENTIAL_STORE_TEST" in
+  true) export ORCH_REF="v0.11.1" ;;
+  false) export ORCH_REF="${ORCH_REF:-v0.10.2}" ;;
+esac
 export K8S_VERSION="${K8S_VERSION:-1.34.11}" # exact patch: node pools reject a minor-only version
 
 # Local working files (credentials, rendered terraform, logs) - never committed.

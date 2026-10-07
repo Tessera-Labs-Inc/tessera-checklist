@@ -6,10 +6,17 @@
 # $WORK_DIR/authorization-failures.txt — that list is exactly what the roles are missing.
 set -euo pipefail
 source "$(dirname "$0")/env.sh"
-source "$WORK_DIR/spn.env"
 MODE="${1:-apply}"
-export AZURE_CONFIG_DIR="$WORK_DIR/az-spn" ARM_USE_CLI=false
-az login --service-principal -u "$ARM_CLIENT_ID" -p "$ARM_CLIENT_SECRET" --tenant "$ARM_TENANT_ID" -o none
+if [ "$CREDENTIAL_STORE_TEST" = true ]; then
+  # This test creates and assigns a vault-scoped custom role. The role-test
+  # SPN intentionally lacks those permissions, so Platform runs it as admin.
+  unset ARM_CLIENT_ID ARM_CLIENT_SECRET ARM_TENANT_ID AZURE_CONFIG_DIR
+  export ARM_USE_CLI=true ARM_SUBSCRIPTION_ID="$SUB_ID"
+else
+  source "$WORK_DIR/spn.env"
+  export AZURE_CONFIG_DIR="$WORK_DIR/az-spn" ARM_USE_CLI=false
+  az login --service-principal -u "$ARM_CLIENT_ID" -p "$ARM_CLIENT_SECRET" --tenant "$ARM_TENANT_ID" -o none
+fi
 az account set --subscription "$SUB_ID"
 
 ACR_ID="/subscriptions/$SUB_ID/resourceGroups/$CORE_RG/providers/Microsoft.ContainerRegistry/registries/$ACR_NAME"
@@ -19,6 +26,9 @@ zone_id() { echo "/subscriptions/$HUB_SUB_ID/resourceGroups/$HUB_RG/providers/Mi
 # Azure DevOps agent that's the agent subnet; from a laptop it's this public IP.
 RUNNER_IP="${RUNNER_IP:-$(curl -s https://api.ipify.org)}"
 ADMIN_OID="${ADMIN_OID:-}" # platform engineer object ID: KV admin, blob data, AKS RBAC cluster admin (needed for Flux bootstrap)
+if [ "$CREDENTIAL_STORE_TEST" = true ] && [ -z "$ADMIN_OID" ]; then
+  ADMIN_OID=$(az ad signed-in-user show --query id -o tsv)
+fi
 POOL='vm_size = "Standard_D2s_v3", node_count = 1, enable_auto_scaling = true, min_count = 1, max_count = 1, max_pods = 30, tags = {}, os_disk_size_gb = 64, max_surge = "1", node_labels = {}'
 # data/observability carry the stateful apps (etcd, ClickHouse, ZooKeeper, Milvus); data-processing
 # requests 24Gi on role=data, so data is memory-optimized (checklist sizes it E16s_v3).
@@ -67,6 +77,11 @@ PG_ZONE_ARG=$( [ -n "$PG_ZONE" ] && echo ", zone = \"$PG_ZONE\"" || true )
 
 TF_DIR="$WORK_DIR/terraform"
 mkdir -p "$TF_DIR"
+STORE_ARGS=""
+if [ "$CREDENTIAL_STORE_TEST" = true ]; then
+  STORE_ARGS='credential_store_enabled = true
+  credential_release_enabled = false'
+fi
 cat > "$TF_DIR/main.tf" <<EOF
 terraform {
   backend "azurerm" {}
@@ -74,6 +89,8 @@ terraform {
 
 module "orchestration" {
   source = "${ORCH_SOURCE}"
+
+  ${STORE_ARGS}
 
   customer_name       = "${CUSTOMER}"
   environment         = "${ENVIRONMENT}"
