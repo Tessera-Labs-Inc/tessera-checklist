@@ -13,9 +13,9 @@
 #      the manual secrets (victoriametrics, MCP credentials; langfuse is Terraform-managed) from another vault
 #
 #   KFLEET_DIR=~/platform-deployment/kfleet SOURCE_KV=private-sandbox-kv ./06-prepare-flux.sh
+#   For CREDENTIAL_STORE_TEST=true, leave SOURCE_KV empty.
 set -euo pipefail
 source "$(dirname "$0")/env.sh"
-az account set --subscription "$SUB_ID"
 
 KFLEET_DIR="${KFLEET_DIR:-$HOME/platform-deployment/kfleet}"
 KFLEET_CLUSTER="${KFLEET_CLUSTER:-sandbox2-azure}"
@@ -25,6 +25,11 @@ SHARED_ACR_SUB="${SHARED_ACR_SUB:-951b7f30-6e08-4bd5-81a1-bd0cfc563867}"
 SOURCE_KV="${SOURCE_KV:-}"                 # e.g. private-sandbox-kv (sandbox-internal-azure's vault)
 SOURCE_PREFIX="${SOURCE_PREFIX:-tessera-private--sandbox--}"
 SOURCE_KV_SUB="${SOURCE_KV_SUB:-929a6f81-f6c8-4d83-af8f-e387b58e5eb3}"
+if [ "$CREDENTIAL_STORE_TEST" = true ] && [ -n "$SOURCE_KV" ]; then
+  echo "The credential-store test uses synthetic secrets. Leave SOURCE_KV empty." >&2
+  exit 1
+fi
+az account set --subscription "$SUB_ID"
 
 CLUSTER="${NAME}-cluster"
 KV="${CUSTOMER}-${ENVIRONMENT}-kv"
