@@ -82,6 +82,15 @@ az storage account create -g "$CORE_RG" -n "$TFSTATE_SA" -l "$LOCATION" --sku St
 az storage container create --account-name "$TFSTATE_SA" -n "$TFSTATE_CONTAINER" --auth-mode login -o none || \
   az storage container create --account-name "$TFSTATE_SA" -n "$TFSTATE_CONTAINER" \
     --account-key "$(az storage account keys list -g "$CORE_RG" -n "$TFSTATE_SA" --query '[0].value' -o tsv)" -o none
+if [ "$CREDENTIAL_STORE_TEST" = true ]; then
+  ADMIN_OID=$(az ad signed-in-user show --query id -o tsv)
+  STATE_ID=$(az storage account show -g "$CORE_RG" -n "$TFSTATE_SA" --query id -o tsv)
+  if [ -z "$(az role assignment list --assignee "$ADMIN_OID" --role "Storage Blob Data Contributor" \
+    --scope "$STATE_ID" --query '[0].id' -o tsv)" ]; then
+    az role assignment create --assignee-object-id "$ADMIN_OID" --assignee-principal-type User \
+      --role "Storage Blob Data Contributor" --scope "$STATE_ID" -o none
+  fi
+fi
 
 echo "==> AKS cluster user-assigned identity + checklist roles"
 az identity create -g "$CORE_RG" -n "$AKS_UAMI" -o none

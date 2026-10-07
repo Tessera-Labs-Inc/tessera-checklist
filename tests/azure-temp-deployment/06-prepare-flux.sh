@@ -46,15 +46,37 @@ wi() { echo "$WI" | python3 -c "import json,sys; print(json.load(sys.stdin)['$1'
 
 echo "==> Filling kfleet/clusters/$KFLEET_CLUSTER placeholders"
 ISSUER=$(az aks show -g "$CORE_RG" -n "$CLUSTER" --query oidcIssuerProfile.issuerUrl -o tsv)
-sed -i \
+TENANT_ID=$(wi tenantId)
+ARTIFACT_REPO="${ACR_NAME}.azurecr.io/kfleet/$KFLEET_CLUSTER"
+STORAGE=$(az storage account list -g "$CORE_RG" --query "[?starts_with(name,'tessera')].name | [0]" -o tsv)
+sed -i.bak \
   -e "s#__SOURCE_CONTROLLER_CLIENT_ID__#$(wi source-controller)#" \
   -e "s#__IMAGE_REFLECTOR_CONTROLLER_CLIENT_ID__#$(wi image-reflector-controller)#" \
   -e "s#__EXTERNAL_SECRETS_CLIENT_ID__#$(wi external-secrets)#" \
   -e "s#__MILVUS_CLIENT_ID__#$(wi milvus)#" \
+  -e "s#__AZURE_TENANT_ID__#${TENANT_ID}#g" \
   -e "s#__KUBERNETES_OIDC_ISSUER__#${ISSUER}#" \
+  -e "s#__KFLEET_ARTIFACT_REPO__#${ARTIFACT_REPO}#" \
+  -e "s#__TERRAFORM_ENVIRONMENT__#${ENVIRONMENT}#" \
+  -e "s#__CLUSTER_NAME__#${CLUSTER}#" \
+  -e "s#__CUSTOMER_NAME__#${CUSTOMER}#" \
+  -e "s#__CLUSTER_DOMAIN__#${CLUSTER_DOMAIN}#" \
+  -e "s#__PLATFORM_VAULT_URL__#https://${KV}.vault.azure.net#" \
+  -e "s#__MILVUS_STORAGE_ACCOUNT__#${STORAGE}#" \
   "$CDIR/flux-system/flux-instance.yaml" "$CDIR/flux-system/runtime-info.yaml"
+if [ "$CREDENTIAL_STORE_TEST" = true ]; then
+  STORE_VAULT="${CUSTOMER}-${ENVIRONMENT}-cs-kv"
+  STORE_URL=$(az keyvault show -g "$CORE_RG" -n "$STORE_VAULT" --query properties.vaultUri -o tsv)
+  test -n "$STORE_URL" || { echo "credential-store vault URI is missing" >&2; exit 1; }
+  sed -i.bak \
+    -e "s#__CREDENTIAL_STORE_VAULT_URL__#${STORE_URL}#" \
+    -e "s#__BACKEND_CREDENTIAL_STORE_CLIENT_ID__#$(wi backend)#" \
+    "$CDIR/cluster-overrides/credential-store-policy.yaml"
+fi
+rm -f "$CDIR/flux-system/flux-instance.yaml.bak" \
+  "$CDIR/flux-system/runtime-info.yaml.bak" \
+  "$CDIR/cluster-overrides/credential-store-policy.yaml.bak"
 grep -rn '__[A-Z_]*__' "$CDIR" && { echo "unfilled placeholders remain" >&2; exit 1; } || true
-STORAGE=$(az storage account list -g "$CORE_RG" --query "[?starts_with(name,'tessera')].name | [0]" -o tsv)
 grep -q "MILVUS_AZURE_STORAGE_ACCOUNT: \"$STORAGE\"" "$CDIR/flux-system/runtime-info.yaml" || \
   echo "WARNING: storage account is '$STORAGE' - update MILVUS_AZURE_STORAGE_ACCOUNT in runtime-info.yaml"
 echo "    tenant=$(wi tenantId) issuer=$ISSUER"
